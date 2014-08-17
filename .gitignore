@@ -1,5 +1,15 @@
+# libsvm
 bin/*.dat
 bin/*.scale
 bin/model
 bin/*.out
+
+# xcode
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/default.*
+*/*xcodeproj/*.xcworkspace/
+*/*.xcodeproj/xcshareddata/
+*/*.xcodeproj/xcuserdata/
+*.app
 
