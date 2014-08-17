@@ -1,0 +1,5 @@
+bin/*.dat
+bin/*.scale
+bin/model
+bin/*.out
+
