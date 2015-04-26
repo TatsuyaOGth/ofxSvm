@@ -153,17 +153,6 @@ int predict(FILE *input, FILE *output)
     return 0;
 }
 
-void exit_with_help()
-{
-	printf(
-	"Usage: svm-predict [options] test_file model_file output_file\n"
-	"options:\n"
-	"-b probability_estimates: whether to predict probability estimates, 0 or 1 (default 0); for one-class SVM only 0 is supported\n"
-	"-q : quiet mode (no outputs)\n"
-	);
-	return 1;
-}
-
 int execute_svm_predict(const char* test_file, const char* model_file, const char* output_file, const int _predict_probability)
 {
 	FILE *input, *output;

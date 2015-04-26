@@ -157,7 +157,7 @@ void set_svm_train_parameters(const int _svm_type,
     if (_cross_validation_nr != 0)
     {
         cross_validation = 1;
-        nr_fold = atoi(_cross_validation_nr);
+        nr_fold = _cross_validation_nr;
         if(nr_fold < 2)
         {
             fprintf(stderr,"n-fold cross validation: n must >= 2\n");

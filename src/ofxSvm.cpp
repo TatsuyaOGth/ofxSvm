@@ -1,33 +1,45 @@
 #include "ofxSvm.h"
-#include "svm-scale.h"
-#include "svm-train.h"
-#include "svm-predict.h"
+#include "svm-utils.h"
+
 
 
 bool ofxSvm::train(const string& dataset_file_name, const string& output_model_file_name)
 {
-    if (mGamma == 0)
+    if (nr_fold != 0)
     {
-        mGamma = 1.0 / mDataset.begin()->second.size();
+        cross_validation = 1;
+        if(nr_fold < 2)
+        {
+            ofLogError("ofxSvm::train") << "n-fold cross validation: n must >= 2" << endl;
+            return false;
+        }
     }
     
-    set_svm_train_parameters((int)mSvmType, (int)mKernelType, mDegree, mGamma, mCoef0, mNu, mCachesize,
-                             mCost, mTolerance, mEpsilon, mUseShrinking ? 1 : 0, mProbabilityEstimates ? 1 : 0, mCrossValidationNr);
+    ofFile fin(dataset_file_name);
+    struct svm_problem prob;
     
-    ofFile inf(dataset_file_name);
-    ofFile outf(output_model_file_name);
-    int res = execute_svm_train(inf.getAbsolutePath().c_str(), outf.getAbsolutePath().c_str());
-    return res == 0;
-}
-
-bool ofxSvm::scaling(const string& data_file_name, const string& output_file_name,
-                     const double x_lower, const double x_upper,
-                     const double y_lower, const double y_upper)
-{
-    ofFile inf(data_file_name);
-    ofFile outf(output_file_name);
-    int res = svm_scale(inf.getAbsolutePath().c_str(), outf.getAbsolutePath().c_str(), x_lower, x_upper, y_lower, y_upper, NULL, NULL);
-    return res == 0;
+    int res = read_problem(fin.getAbsolutePath().c_str(), &prob, &param);
+    if (res != 0)
+        goto ERROR_RETURN;
+    
+    model = svm_train(&prob, &param);
+    
+    if (!output_model_file_name.empty())
+    {
+        if (!saveModelData(output_model_file_name))
+        {
+            goto ERROR_RETURN;
+        }
+    }
+    
+    free(prob.y);
+    free(prob.x);
+    return true;
+    
+ERROR_RETURN:
+    free(prob.y);
+    free(prob.x);
+    return false;
 }
 
 bool ofxSvm::predict(const string& test_file_name, const string& model_file_name,
@@ -36,63 +48,67 @@ bool ofxSvm::predict(const string& test_file_name, const string& model_file_name
     ofFile f1(test_file_name);
     ofFile f2(model_file_name);
     ofFile f3(result_file_name);
-    int res = execute_svm_predict(f1.getAbsolutePath().c_str(), f2.getAbsolutePath().c_str(), f3.getAbsolutePath().c_str(), predict_probability ? 1 : 0);
-    return res == 0;
+//    int res = execute_svm_predict(f1.getAbsolutePath().c_str(), f2.getAbsolutePath().c_str(), f3.getAbsolutePath().c_str(), predict_probability ? 1 : 0);
+//    return res == 0;
+    return true;
 }
 
-
-
-void ofxSvm::setData(const int lavel, vector<double> &features)
+bool ofxSvm::saveModelData(const string &save_file_name)
 {
-    bool ret = true;
-    if (!mDataset.empty())
-    {
-        int inSize = features.size();
-        for (dataset_type::iterator it = mDataset.begin(); it != mDataset.end(); it++) {
-            ret = inSize == it->second.size();
-        }
-    }
-    if (!ret) ofLogWarning("ofxSvm::setData") << "in different size";
-    mDataset.insert(make_pair(lavel, features));
+    ofFile fout(save_file_name);
+    int res = svm_save_model(fout.getAbsolutePath().c_str(), model);
+    return res != 0;
 }
 
-void ofxSvm::dumpDataset()
+bool ofxSvm::loadModelData(const string &model_file_name)
 {
-    for (const auto& e : mDataset)
+    ofFile fin(model_file_name);
+    model = svm_load_model(fin.getAbsolutePath().c_str());
+    return model != NULL;
+}
+
+int ofxSvm::classify(ofxSvmData &test_svm_data)
+{
+    ofxSvmData::dataset_type& data = test_svm_data.getDataRef();
+    int i = 0;
+    struct svm_node *x;
+    int max_nr_attr = 64;
+    
+    x = (struct svm_node *) malloc(max_nr_attr*sizeof(struct svm_node));
+    
+    for (auto& v : data)
     {
-        cout << e.first << " ";
-        for (int i = 0; i < e.second.size(); ++i)
+        if(i>=max_nr_attr-1)	// need one more for index = -1
         {
-            cout << (i+1) << ":" << e.second[i] << " ";
+            max_nr_attr *= 2;
+            x = (struct svm_node *) realloc(x,max_nr_attr*sizeof(struct svm_node));
         }
-        cout << "\n";
-    }
-}
-
-void ofxSvm::dumpDataset(const string& data_file_name)
-{
-    ofBuffer buffer = ofBufferFromFile(data_file_name);
-    while(buffer.isLastLine() == false)
-    {
-        cout << buffer.getNextLine();
-        cout << "\n";
-    }
-}
-
-void ofxSvm::exportDataset(const string& filename)
-{
-    ofFile file(filename, ofFile::WriteOnly);
-    for (const auto& e : mDataset)
-    {
-        file << e.first << " ";
-        for (int i = 0; i < e.second.size(); ++i)
+        
+        for (auto& feature : v.second)
         {
-            file << (i+1) << ":" << e.second[i] << " ";
+            x[i].index = i + 1;
+            x[i].value = feature;
+            
+            ++i;
         }
-        file << "\n";
+        
+//        idx = strtok(NULL,":");
+//        val = strtok(NULL," \t");
+//        
+//        if(val == NULL)
+//            break;
+//        errno = 0;
+//        x[i].index = (int) strtol(idx,&endptr,10);
+//        if(endptr == idx || errno != 0 || *endptr != '\0' || x[i].index <= inst_max_index)
+//            return exit_input_error(total+1);
+//        else
+//            inst_max_index = x[i].index;
+//        
+//        errno = 0;
+//        x[i].value = strtod(val,&endptr);
+//        if(endptr == val || errno != 0 || (*endptr != '\0' && !isspace(*endptr)))
+//            return exit_input_error(total+1);
+        
+        
     }
-    file.close();
 }
-
-
-

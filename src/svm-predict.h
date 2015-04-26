@@ -4,9 +4,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-extern int execute_svm_predict(const char* test_file, const char* model_file, const char* output_file, const int _predict_probability);
-
+    
+    extern int execute_svm_predict(const char* test_file, const char* model_file, const char* output_file, const int _predict_probability);
+    
 #ifdef __cplusplus
 }
 #endif
