@@ -8,6 +8,11 @@
 
 /* Begin PBXBuildFile section */
 		918F74E919A0C2A000F2EBD9 /* ofxSvm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 918F74E719A0C2A000F2EBD9 /* ofxSvm.cpp */; };
+		9196AD2E1AEC5040008F5A07 /* svm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9196AD2C1AEC5040008F5A07 /* svm.cpp */; };
+		9196AD311AEC5C53008F5A07 /* svm-predict.c in Sources */ = {isa = PBXBuildFile; fileRef = 9196AD301AEC5C53008F5A07 /* svm-predict.c */; };
+		9196AD351AEC5EA9008F5A07 /* svm-utils.c in Sources */ = {isa = PBXBuildFile; fileRef = 9196AD331AEC5EA9008F5A07 /* svm-utils.c */; };
+		91C988ED1AEB4A7800C31C2F /* svm-scale.c in Sources */ = {isa = PBXBuildFile; fileRef = 91C988EC1AEB4A7800C31C2F /* svm-scale.c */; };
+		91C988F01AEB5BC500C31C2F /* svm-train.c in Sources */ = {isa = PBXBuildFile; fileRef = 91C988EF1AEB5BC500C31C2F /* svm-train.c */; };
 		BBAB23CB13894F3D00AA2426 /* GLUT.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = BBAB23BE13894E4700AA2426 /* GLUT.framework */; };
 		E4328149138ABC9F0047C5CB /* openFrameworksDebug.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E4328148138ABC890047C5CB /* openFrameworksDebug.a */; };
 		E45BE97B0E8CC7DD009D7055 /* AGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E45BE9710E8CC7DD009D7055 /* AGL.framework */; };
@@ -62,6 +67,16 @@
 /* Begin PBXFileReference section */
 		918F74E719A0C2A000F2EBD9 /* ofxSvm.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ofxSvm.cpp; sourceTree = "<group>"; };
 		918F74E819A0C2A000F2EBD9 /* ofxSvm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ofxSvm.h; sourceTree = "<group>"; };
+		9196AD2C1AEC5040008F5A07 /* svm.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = svm.cpp; sourceTree = "<group>"; };
+		9196AD2D1AEC5040008F5A07 /* svm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = svm.h; sourceTree = "<group>"; };
+		9196AD301AEC5C53008F5A07 /* svm-predict.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = "svm-predict.c"; sourceTree = "<group>"; };
+		9196AD321AEC5C60008F5A07 /* svm-predict.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "svm-predict.h"; sourceTree = "<group>"; };
+		9196AD331AEC5EA9008F5A07 /* svm-utils.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = "svm-utils.c"; sourceTree = "<group>"; };
+		9196AD341AEC5EA9008F5A07 /* svm-utils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "svm-utils.h"; sourceTree = "<group>"; };
+		91C988EC1AEB4A7800C31C2F /* svm-scale.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = "svm-scale.c"; sourceTree = "<group>"; };
+		91C988EE1AEB54B600C31C2F /* svm-scale.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "svm-scale.h"; sourceTree = "<group>"; };
+		91C988EF1AEB5BC500C31C2F /* svm-train.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = "svm-train.c"; sourceTree = "<group>"; };
+		91C988F11AEB5BD100C31C2F /* svm-train.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "svm-train.h"; sourceTree = "<group>"; };
 		BBAB23BE13894E4700AA2426 /* GLUT.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = GLUT.framework; path = ../../../libs/glut/lib/osx/GLUT.framework; sourceTree = "<group>"; };
 		E4328143138ABC890047C5CB /* openFrameworksLib.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = openFrameworksLib.xcodeproj; path = ../../../libs/openFrameworksCompiled/project/osx/openFrameworksLib.xcodeproj; sourceTree = SOURCE_ROOT; };
 		E45BE9710E8CC7DD009D7055 /* AGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AGL.framework; path = /System/Library/Frameworks/AGL.framework; sourceTree = "<absolute>"; };
@@ -117,6 +132,7 @@
 		918F74E019A0C25400F2EBD9 /* ofxSvm */ = {
 			isa = PBXGroup;
 			children = (
+				9196AD2A1AEC5040008F5A07 /* libs */,
 				918F74E619A0C25400F2EBD9 /* src */,
 			);
 			name = ofxSvm;
@@ -126,10 +142,35 @@
 		918F74E619A0C25400F2EBD9 /* src */ = {
 			isa = PBXGroup;
 			children = (
+				91C988EC1AEB4A7800C31C2F /* svm-scale.c */,
+				91C988EE1AEB54B600C31C2F /* svm-scale.h */,
+				91C988EF1AEB5BC500C31C2F /* svm-train.c */,
+				91C988F11AEB5BD100C31C2F /* svm-train.h */,
+				9196AD301AEC5C53008F5A07 /* svm-predict.c */,
+				9196AD321AEC5C60008F5A07 /* svm-predict.h */,
+				9196AD331AEC5EA9008F5A07 /* svm-utils.c */,
+				9196AD341AEC5EA9008F5A07 /* svm-utils.h */,
 				918F74E719A0C2A000F2EBD9 /* ofxSvm.cpp */,
 				918F74E819A0C2A000F2EBD9 /* ofxSvm.h */,
 			);
 			path = src;
+			sourceTree = "<group>";
+		};
+		9196AD2A1AEC5040008F5A07 /* libs */ = {
+			isa = PBXGroup;
+			children = (
+				9196AD2B1AEC5040008F5A07 /* libsvm */,
+			);
+			path = libs;
+			sourceTree = "<group>";
+		};
+		9196AD2B1AEC5040008F5A07 /* libsvm */ = {
+			isa = PBXGroup;
+			children = (
+				9196AD2C1AEC5040008F5A07 /* svm.cpp */,
+				9196AD2D1AEC5040008F5A07 /* svm.h */,
+			);
+			path = libsvm;
 			sourceTree = "<group>";
 		};
 		BB4B014C10F69532006C3DED /* addons */ = {
@@ -305,9 +346,14 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9196AD351AEC5EA9008F5A07 /* svm-utils.c in Sources */,
+				9196AD311AEC5C53008F5A07 /* svm-predict.c in Sources */,
+				9196AD2E1AEC5040008F5A07 /* svm.cpp in Sources */,
 				918F74E919A0C2A000F2EBD9 /* ofxSvm.cpp in Sources */,
 				E4B69E200A3A1BDC003C02F2 /* main.cpp in Sources */,
 				E4B69E210A3A1BDC003C02F2 /* ofApp.cpp in Sources */,
+				91C988F01AEB5BC500C31C2F /* svm-train.c in Sources */,
+				91C988ED1AEB4A7800C31C2F /* svm-scale.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -346,6 +392,7 @@
 					"$(OF_CORE_HEADERS)",
 					../../../addons/ofxSvm/libs,
 					../../../addons/ofxSvm/src,
+					../../../addons/ofxSvm/libs/libsvm,
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
 				OTHER_CPLUSPLUSFLAGS = (
@@ -382,6 +429,7 @@
 					"$(OF_CORE_HEADERS)",
 					../../../addons/ofxSvm/libs,
 					../../../addons/ofxSvm/src,
+					../../../addons/ofxSvm/libs/libsvm,
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
 				OTHER_CPLUSPLUSFLAGS = (

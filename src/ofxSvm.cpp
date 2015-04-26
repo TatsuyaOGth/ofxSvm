@@ -1,155 +1,98 @@
 #include "ofxSvm.h"
+#include "svm-scale.h"
+#include "svm-train.h"
+#include "svm-predict.h"
 
-#ifdef __APPLE__
-static const string SEPARATOR = "/";
-static const string CD_BIN = "../../../../../../../addons/ofxSvm/bin"; //TODO: not elegant...
-#elif defined __WIN32__
-static const string SEPARATOR = "\";
-static const string CD_BIN = "??????? \bin"; //TODO: i dont know original path in case win32
-#endif
 
-static const string OFXSVM_LOG_TITLE = "ofxSvm";
-
-int ofxSvm::commandAtLibsDir(const string &cmd)
+bool ofxSvm::train(const string& dataset_file_name, const string& output_model_file_name)
 {
-    return system(("cd " + CD_BIN + ";" + cmd).c_str());
-}
-
-void ofxSvm::outputTrainData()
-{
-    if (mDataSet.empty()) {
-        ofLogError(OFXSVM_LOG_TITLE) << "dataset is empty";
-        return false;
-    }
-    
-    ofstream out((CD_BIN + "/data.dat").c_str());
-    for (DATASET_TYPE::iterator it = mDataSet.begin(); it != mDataSet.end(); it++) {
-        out << it->first;
-        for (int i = 0; i < it->second.size(); i++) {
-            out << " " << (i + 1) << ":" << it->second[i];
-        }
-        out << endl;
-    }
-    out.close();
-}
-
-void ofxSvm::reset()
-{
-    mDataSet.clear();
-    mDidScaling = false;
-}
-
-void ofxSvm::test()
-{
+    if (mGamma == 0)
     {
-        vector<string> datas;
-        
-        datas.push_back("+0 1:2.4 2:45.2 3:44.2 4:55.1 5:1.12");
-        datas.push_back("+0 1:3.3 2:40.1 3:41.2 4:50.2 5:2.32");
-        datas.push_back("+2 1:4.1 2:42.2 3:47.7 4:48.2 5:0.11");
-        datas.push_back("+1 1:2.4 2:38.2 3:40.1 4:54.3 5:2.25");
-        
-        
-        ofstream out((CD_BIN + "/data.dat").c_str());
-        for (vector<string>::iterator it = datas.begin(); it != datas.end(); it++) out << *it << endl;
-        out.close();
-        
-        int ret = 0;
-        ret = commandAtLibsDir("./svm-scale -u 1 -l 0 data.dat > data.scale");
-        ofLogNotice() << ret;
-        
-        ret = commandAtLibsDir("./svm-train data.scale model > train.");
-        ofLogNotice() << ret;
-        
+        mGamma = 1.0 / mDataset.begin()->second.size();
     }
     
-    //-------------------------------------------
+    set_svm_train_parameters((int)mSvmType, (int)mKernelType, mDegree, mGamma, mCoef0, mNu, mCachesize,
+                             mCost, mTolerance, mEpsilon, mUseShrinking ? 1 : 0, mProbabilityEstimates ? 1 : 0, mCrossValidationNr);
     
-    {
-        vector<string> inputdata;
-        
-        inputdata.push_back("+1 1:2.4 2:45.2 3:44.2 4:55.1 5:1.12");
-//        inputdata.push_back("+0 1:3.3 2:40.1 3:41.2 4:50.2 5:2.32");
-//        inputdata.push_back("+1 1:4.1 2:42.2 3:47.7 4:48.2 5:0.11");
-//        inputdata.push_back("+1 1:2.4 2:38.2 3:40.1 4:54.3 5:2.25");
-        
-        ofstream out((CD_BIN + "/input.dat").c_str());
-        for (vector<string>::iterator it = inputdata.begin(); it != inputdata.end(); it++) out << *it << endl;
-        out.close();
-        
-        int ret = 0;
-        ret = commandAtLibsDir("./svm-predict input.dat model output > predict.out");
-        ofLogNotice() << ret;
-    }
+    ofFile inf(dataset_file_name);
+    ofFile outf(output_model_file_name);
+    int res = execute_svm_train(inf.getAbsolutePath().c_str(), outf.getAbsolutePath().c_str());
+    return res == 0;
 }
 
-bool ofxSvm::scaling(const float min, const float max)
+bool ofxSvm::scaling(const string& data_file_name, const string& output_file_name,
+                     const double x_lower, const double x_upper,
+                     const double y_lower, const double y_upper)
 {
-    mScaleMin = min;
-    mScaleMax = max;
-    scaling();
+    ofFile inf(data_file_name);
+    ofFile outf(output_file_name);
+    int res = svm_scale(inf.getAbsolutePath().c_str(), outf.getAbsolutePath().c_str(), x_lower, x_upper, y_lower, y_upper, NULL, NULL);
+    return res == 0;
 }
 
-bool ofxSvm::scaling()
+bool ofxSvm::predict(const string& test_file_name, const string& model_file_name,
+                     const string& result_file_name, const bool predict_probability)
 {
-    outputTrainData();
-    
-    string minStr = ofToString(mScaleMin);
-    string maxStr = ofToString(mScaleMax);
-    int ret = commandAtLibsDir("./svm-scale -u " + maxStr + " -l " + minStr + " data.dat > data.dat.scale");
-    mDidScaling = true;
-    return (ret == 0 ? true : false);
+    ofFile f1(test_file_name);
+    ofFile f2(model_file_name);
+    ofFile f3(result_file_name);
+    int res = execute_svm_predict(f1.getAbsolutePath().c_str(), f2.getAbsolutePath().c_str(), f3.getAbsolutePath().c_str(), predict_probability ? 1 : 0);
+    return res == 0;
 }
 
-bool ofxSvm::train()
-{
-    if (!mDidScaling) {
-        outputTrainData();
-    }
-    
-    // set parameters
-    DATASET_TYPE::iterator it = mDataSet.begin();
-    const int k = it->second.size() - 1;
-    stringstream ss;
-    ss << " -s " << static_cast<int>(mSvmType);
-    ss << " -t " << static_cast<int>(mKernelType);
-    ss << " -d " << mDegree;
-    ss << " -g " << mGamma / k;
-    ss << " -r " << mCoef0;
-    ss << " -c " << mCost;
-    ss << " -n " << mNu;
-    ss << " -m " << mCachesize;
-    ss << " -e " << mEpsilon;
-    ss << " -v " << mN;
-    
-    // traning
-    string dataFile;
-    mDidScaling ? dataFile = " data.dat.scale" : dataFile = " data.dat";
-    string command = "./svm-train" + ss.str() + dataFile + " model";
-    int ret = commandAtLibsDir(command);
-    
-    // reset
-    reset();
-    
-    return (ret == 0 ? true : false);
-}
 
-bool ofxSvm::setData(const int dataClass, vector<float> & data)
+
+void ofxSvm::setData(const int lavel, vector<double> &features)
 {
     bool ret = true;
-    if (!mDataSet.empty()) {
-        int inSize = data.size();
-        for (DATASET_TYPE::iterator it = mDataSet.begin(); it != mDataSet.end(); it++) {
+    if (!mDataset.empty())
+    {
+        int inSize = features.size();
+        for (dataset_type::iterator it = mDataset.begin(); it != mDataset.end(); it++) {
             ret = inSize == it->second.size();
         }
     }
-    if (!ret) ofLogWarning(OFXSVM_LOG_TITLE) << "in different size";
-    
-    mDataSet.insert(make_pair(dataClass, data));
-    
-    return ret;
+    if (!ret) ofLogWarning("ofxSvm::setData") << "in different size";
+    mDataset.insert(make_pair(lavel, features));
 }
 
+void ofxSvm::dumpDataset()
+{
+    for (const auto& e : mDataset)
+    {
+        cout << e.first << " ";
+        for (int i = 0; i < e.second.size(); ++i)
+        {
+            cout << (i+1) << ":" << e.second[i] << " ";
+        }
+        cout << "\n";
+    }
+}
+
+void ofxSvm::dumpDataset(const string& data_file_name)
+{
+    ofBuffer buffer = ofBufferFromFile(data_file_name);
+    while(buffer.isLastLine() == false)
+    {
+        cout << buffer.getNextLine();
+        cout << "\n";
+    }
+}
+
+void ofxSvm::exportDataset(const string& filename)
+{
+    ofFile file(filename, ofFile::WriteOnly);
+    for (const auto& e : mDataset)
+    {
+        file << e.first << " ";
+        for (int i = 0; i < e.second.size(); ++i)
+        {
+            file << (i+1) << ":" << e.second[i] << " ";
+        }
+        file << "\n";
+    }
+    file.close();
+}
 
 
 

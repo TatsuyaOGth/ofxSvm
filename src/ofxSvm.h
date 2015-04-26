@@ -5,7 +5,7 @@
 
 enum OFXSVM_TYPE
 {
-    OFXSVM_TYPE_C_SVC = 0,          ///< [default]
+    OFXSVM_TYPE_C_SVC = 0,
     OFXSVM_TYPE_NU_SVC = 1,
     OFXSVM_TYPE_ONE_CLASS_SVM = 2,
     OFXSVM_TYPE_EPSILON_SVR = 3,
@@ -16,44 +16,39 @@ enum OFXSVM_KERNEL
 {
     OFXSVM_KERNEL_LINER = 0,
     OFXSVM_KERNEL_POLYNOMIAL = 1,
-    OFXSVM_KERNEL_RBF = 2,          ///< [default]
+    OFXSVM_KERNEL_RBF = 2,
     OFXSVM_KERNEL_SIGMOID = 3
 };
 
+
+//============================================
 class ofxSvm
 {
-    typedef multimap<int, vector<float> > DATASET_TYPE;
+public:
+    typedef multimap<int, vector<double> > dataset_type;
     
-    // data set
-    DATASET_TYPE mDataSet;
+private:
+    dataset_type mDataset;
     
-    // scaling parames
-    float   mScaleMin;
-    float   mScaleMax;
-    bool    mDidScaling;
     
-    // traing params
+    // training parameters
+    
     OFXSVM_TYPE mSvmType;
     OFXSVM_KERNEL mKernelType;
-    float   mDegree;
-    float   mGamma;
-    float   mCoef0;
-    float   mCost;
-    float   mNu;
-    float   mEpsilon;
-    float   mCachesize;
-    bool    mUseShrinking;
-    int     mN;
-    
-    int commandAtLibsDir(const string & cmd);
-    void outputTrainData();
-    void reset();
+    double   mDegree;
+    double   mGamma;
+    double   mCoef0;
+    double   mCost;
+    double   mNu;
+    double   mEpsilon;
+    double   mTolerance;
+    double   mCachesize;
+    bool     mUseShrinking;
+    bool     mProbabilityEstimates;
+    int      mCrossValidationNr;
     
 public:
-    
     ofxSvm():
-    mScaleMin(-1),
-    mScaleMax( 1),
     mSvmType(OFXSVM_TYPE_C_SVC),
     mKernelType(OFXSVM_KERNEL_RBF),
     mDegree(3),
@@ -62,21 +57,30 @@ public:
     mCost(1),
     mNu(0.5),
     mCachesize(100),
-    mEpsilon(0.001),
+    mEpsilon(0.1),
+    mTolerance(0.001),
     mUseShrinking(true),
-    mN(2)
+    mProbabilityEstimates(false),
+    mCrossValidationNr(0)
     {
     }
     
-    void test();
+    void setData(const int lavel, vector<double>& features);
     
-    bool setData(const int dataClass, vector<float> & data);
-    bool scaling();
-    bool scaling(const float min, const float max);
-    bool train();
+    void exportDataset(const string& filename);
     
-    void setScaleMin(const float v) { mScaleMin = v; }
-    void setScaleMax(const float v) { mScaleMax = v; }
+    bool train(const string& dataset_file_name, const string& output_model_file_name);
+    
+    bool scaling(const string& data_file_name, const string& output_file_name,
+                 const double x_lower = -1.0, const double x_upper = 1.0,
+                 const double y_lower = 0, const double y_upper = 0);
+    
+    bool predict(const string& test_file_name, const string& model_file_name,
+                 const string& result_file_name, const bool predict_probability = false);
+    
+    
+    
+    
     void setSvmType(const OFXSVM_TYPE type) { mSvmType = type; }
     void setKernelType(const OFXSVM_KERNEL type) { mKernelType = type; }
     void setDegree(const float param) { mDegree = param; }
@@ -87,8 +91,13 @@ public:
     void setCachssize(const float param) { mCachesize = param; }
     void setEpsilon(const float param) { mEpsilon = param; }
     void setUseShrinking(const bool param) { mUseShrinking = param; }
-    void setNumClossValidation(const int param) { mN = param; }
+    void setNumClossValidation(const int param) { mCrossValidationNr = param; }
     
+    dataset_type& getDatasetRef() { return mDataset; }
+    
+    
+    void dumpDataset();
+    void dumpDataset(const string& data_file_name);
 };
 
 #endif /* defined(__ofxSvmExample__ofxSvm__) */

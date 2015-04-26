@@ -1,72 +1,8 @@
 #include "ofApp.h"
 
-//--------------------------------------------------------------
 void ofApp::setup(){
     
-}
-
-//--------------------------------------------------------------
-void ofApp::update(){
-
-}
-
-//--------------------------------------------------------------
-void ofApp::draw(){
-    
-    
-}
-
-//--------------------------------------------------------------
-void ofApp::keyPressed(int key){
-}
-
-//--------------------------------------------------------------
-void ofApp::keyReleased(int key){
-
-}
-
-//--------------------------------------------------------------
-void ofApp::mouseMoved(int x, int y ){
-
-}
-
-//--------------------------------------------------------------
-void ofApp::mouseDragged(int x, int y, int button){
-
-}
-
-//--------------------------------------------------------------
-void ofApp::mousePressed(int x, int y, int button){
-    test();
-}
-
-//--------------------------------------------------------------
-void ofApp::mouseReleased(int x, int y, int button){
-
-}
-
-//--------------------------------------------------------------
-void ofApp::windowResized(int w, int h){
-
-}
-
-//--------------------------------------------------------------
-void ofApp::gotMessage(ofMessage msg){
-
-}
-
-//--------------------------------------------------------------
-void ofApp::dragEvent(ofDragInfo dragInfo){ 
-
-}
-
-
-
-
-
-void ofApp::test()
-{
-    vector<float> data;
+    vector<double> data;
     data.push_back(2.4);
     data.push_back(45.2);
     data.push_back(44.2);
@@ -98,8 +34,26 @@ void ofApp::test()
     data.push_back(2.25);
     mSvm.setData(1, data);
     
-    mSvm.scaling(-1, 1);
-    mSvm.train();
+    cout << "\n\n----- set features data -----\n\n";
+    mSvm.dumpDataset();
+    mSvm.exportDataset("dataset");
+    
+    cout << "\n\n----- scaling -----\n\n";
+    mSvm.scaling("dataset", "dataset.scale");
+    mSvm.dumpDataset("dataset.scale");
+    
+    cout << "\n\n----- train -----\n\n";
+    mSvm.train("dataset.scale", "model");
+    
+    cout << "\n\n----- predict -----\n\n";
+    mSvm.predict("dataset", "model", "result");
 }
 
+void ofApp::update(){
 
+}
+
+void ofApp::draw(){
+    
+    
+}
