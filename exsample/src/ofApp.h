@@ -11,5 +11,4 @@ public:
     void draw();
     
     ofxSvm mSvm;
-    ofxSvmData mTrainData, mTestData;
 };

@@ -1,7 +1,6 @@
 #include "ofxSvm.h"
 #include "svm-utils.h"
-
-
+#include "svm-scale.h"
 
 bool ofxSvm::train(const string& dataset_file_name, const string& output_model_file_name)
 {
@@ -67,48 +66,13 @@ bool ofxSvm::loadModelData(const string &model_file_name)
     return model != NULL;
 }
 
-int ofxSvm::classify(ofxSvmData &test_svm_data)
+
+
+bool ofxSvm::scaling(const char *data_file_name, const char *output_file_name, const double x_lower, const double x_upper, const double y_lower, const double y_upper)
 {
-    ofxSvmData::dataset_type& data = test_svm_data.getDataRef();
-    int i = 0;
-    struct svm_node *x;
-    int max_nr_attr = 64;
-    
-    x = (struct svm_node *) malloc(max_nr_attr*sizeof(struct svm_node));
-    
-    for (auto& v : data)
-    {
-        if(i>=max_nr_attr-1)	// need one more for index = -1
-        {
-            max_nr_attr *= 2;
-            x = (struct svm_node *) realloc(x,max_nr_attr*sizeof(struct svm_node));
-        }
-        
-        for (auto& feature : v.second)
-        {
-            x[i].index = i + 1;
-            x[i].value = feature;
-            
-            ++i;
-        }
-        
-//        idx = strtok(NULL,":");
-//        val = strtok(NULL," \t");
-//        
-//        if(val == NULL)
-//            break;
-//        errno = 0;
-//        x[i].index = (int) strtol(idx,&endptr,10);
-//        if(endptr == idx || errno != 0 || *endptr != '\0' || x[i].index <= inst_max_index)
-//            return exit_input_error(total+1);
-//        else
-//            inst_max_index = x[i].index;
-//        
-//        errno = 0;
-//        x[i].value = strtod(val,&endptr);
-//        if(endptr == val || errno != 0 || (*endptr != '\0' && !isspace(*endptr)))
-//            return exit_input_error(total+1);
-        
-        
-    }
+    ofFile inf(data_file_name);
+    ofFile outf(output_file_name);
+    int res = svm_scale(inf.getAbsolutePath().c_str(), outf.getAbsolutePath().c_str(), x_lower, x_upper, y_lower, y_upper);
+    return res == 0;
 }
+

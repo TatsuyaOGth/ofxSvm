@@ -1,14 +1,11 @@
-#ifndef __ofxSvmExample__ofxSvm__
-#define __ofxSvmExample__ofxSvm__
+#pragma once
 
 #include "ofMain.h"
-#include "ofxSvmData.h"
 #include "svm.h"
 
 class ofxSvm
 {
 private:
-
     struct svm_parameter param; ///< Training parameters
     struct svm_model* model; ///< Model data
     int cross_validation;
@@ -36,13 +33,13 @@ public:
     {
         if (model) svm_free_and_destroy_model(&model);
     }
+    
+    
         
-    bool train(ofxSvmData& data, const string& output_model_file_name);
     bool train(const string& dataset_file_name, const string& output_model_file_name = "");
+    
     bool predict(const string& test_file_name, const string& model_file_name,
                  const string& result_file_name, const bool predict_probability = false);
-    
-    int  classify(ofxSvmData& test_svm_data);
     
     
     void setSvmType(const int type) { param.svm_type = type; }
@@ -59,6 +56,41 @@ public:
     
     bool saveModelData(const string& save_file_name);
     bool loadModelData(const string& model_file_name);
-};
+    
+    
+public:
+    
+    // utility method
 
-#endif /* defined(__ofxSvmExample__ofxSvm__) */
+    template<class Iterator>
+    static void writeFeatures(Iterator first, Iterator last, ofFile& file)
+    {
+        int i = 1;
+        first++;
+        while (first != last)
+        {
+            file << i << ":" << *first << " ";
+            i++;
+            first++;
+        }
+        file << "\n";
+    }
+    
+    template<typename container>
+    static void saveToFileDataset(const string& save_file_name, const container& dataset)
+    {
+        ofFile file(save_file_name, ofFile::WriteOnly);
+        for (const auto& data : dataset)
+        {
+            file << static_cast<int>(data[0]) << " ";
+            writeFeatures(data.begin(), data.end(), file);
+        }
+        file.close();
+    }
+
+    
+    static bool scaling(const char *data_file_name, const char *output_file_name,
+                        const double x_lower, const double x_upper,
+                        const double y_lower, const double y_upper);
+
+};
