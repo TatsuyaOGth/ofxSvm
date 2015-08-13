@@ -1,78 +1,201 @@
 #include "ofxSvm.h"
-#include "svm-utils.h"
-#include "svm-scale.h"
 
-bool ofxSvm::train(const string& dataset_file_name, const string& output_model_file_name)
+#define LOG_MODULE "ofxSvm::"+string(__FUNCTION__)
+
+ofxSvm::ofxSvm() : mModel(NULL), mDimension(0)
 {
-    if (nr_fold != 0)
+    defaultParams();
+}
+
+ofxSvm::~ofxSvm()
+{
+    svm_destroy_param(&mParam);
+    svm_free_and_destroy_model(&mModel);
+}
+
+void ofxSvm::defaultParams()
+{
+    mParam.svm_type     = C_SVC;
+    mParam.kernel_type  = RBF;
+    mParam.degree       = 3;
+    mParam.gamma        = 0; // 1/n
+    mParam.coef0        = 0;
+    mParam.C            = 1;
+    mParam.nu           = 0.5;
+    mParam.cache_size   = 100;
+    mParam.eps          = 0.1;
+    mParam.p            = 0.001;
+    mParam.shrinking    = 1;
+    mParam.probability  = 0;
+    mParam.weight_label = NULL;
+    mParam.weight       = NULL;
+}
+
+void ofxSvm::checkDimension(int length)
+{
+    if (mDimension > 0 && mDimension != length)
     {
-        cross_validation = 1;
-        if(nr_fold < 2)
+        ofLogWarning(LOG_MODULE, "got different dimensions, set data");
+        mData.clear();
+    }
+}
+
+int ofxSvm::addData(int label, vector<double>& vec)
+{
+    checkDimension(vec.size());
+    
+    mData.insert(make_pair(label, vec));
+    mDimension = vec.size();
+    
+    if (ofGetLogLevel() == OF_LOG_VERBOSE)
+    {
+        stringstream ss;
+        for (const auto v : vec) ss << v << " ";
+        ss << "EOS";
+        ofLogVerbose(LOG_MODULE, "add data, label: " + ofToString(label) + " vec: " + ss.str());
+    }
+    
+    return mData.size();
+}
+
+int ofxSvm::addData(int label, double *vec, int length)
+{
+    checkDimension(length);
+    
+    vector<double> v;
+    for (int i = 0; i < length; ++i)
+    {
+        v.push_back(vec[i]);
+    }
+    mData.insert(make_pair(label, v));
+    mDimension = length;
+    
+    if (ofGetLogLevel() == OF_LOG_VERBOSE)
+    {
+        stringstream ss;
+        for (int i = 0; i < length; ++i) ss << vec[i] << " ";
+        ss << "EOS";
+        ofLogVerbose(LOG_MODULE, "add data, label: " + ofToString(label) + " vec: " + ss.str());
+    }
+    
+    return mData.size();
+}
+
+void ofxSvm::creatData()
+{
+    mData.clear();
+}
+
+void ofxSvm::train()
+{
+    svm_problem prob;
+    
+    prob.l = mData.size();
+    prob.y = new double[prob.l];
+    {
+        data_type::iterator it = mData.begin();
+        int i = 0;
+        while (it != mData.end())
         {
-            ofLogError("ofxSvm::train") << "n-fold cross validation: n must >= 2" << endl;
-            return false;
+            prob.y[i] = it->first;
+            ++it; ++i;
         }
     }
     
-    ofFile fin(dataset_file_name);
-    struct svm_problem prob;
-    
-    int res = read_problem(fin.getAbsolutePath().c_str(), &prob, &param);
-    if (res != 0)
-        goto ERROR_RETURN;
-    
-    model = svm_train(&prob, &param);
-    
-    if (!output_model_file_name.empty())
+    if(mParam.gamma == 0)
     {
-        if (!saveModelData(output_model_file_name))
+        mParam.gamma = 1.0 / mDimension;
+    }
+    
+    int nodeLength = mDimension + 1;
+    svm_node* node = new svm_node[prob.l * nodeLength];
+    prob.x = new svm_node*[prob.l];
+    {
+        data_type::iterator it = mData.begin();
+        int i = 0;
+        while (it != mData.end())
         {
-            goto ERROR_RETURN;
+            prob.x[i] = node + i * nodeLength;
+            for (int j = 0; j < mDimension; ++j)
+            {
+                prob.x[i][j].index = j + 1;
+                prob.x[i][j].value = it->second[j];
+            }
+            prob.x[i][mDimension].index = -1; // delimiter
+            ++it; ++i;
         }
     }
     
-    free(prob.y);
-    free(prob.x);
-    return true;
+    ofLogVerbose(LOG_MODULE, "Start train...");
     
-ERROR_RETURN:
-    free(prob.y);
-    free(prob.x);
-    return false;
+    mModel = svm_train(&prob, &mParam);
+    
+    ofLogVerbose(LOG_MODULE, "Finished train!");
+    
+    delete[] node;
+    delete[] prob.x;
+    delete[] prob.y;
 }
 
-bool ofxSvm::predict(const string& test_file_name, const string& model_file_name,
-                     const string& result_file_name, const bool predict_probability)
+int ofxSvm::predict(vector<double>& testVec)
 {
-    ofFile f1(test_file_name);
-    ofFile f2(model_file_name);
-    ofFile f3(result_file_name);
-//    int res = execute_svm_predict(f1.getAbsolutePath().c_str(), f2.getAbsolutePath().c_str(), f3.getAbsolutePath().c_str(), predict_probability ? 1 : 0);
-//    return res == 0;
-    return true;
+    if (mModel == NULL)
+    {
+        ofLogError(LOG_MODULE, "null model, befor do train or load model file");
+        return 0;
+    }
+    if (testVec.size() != mDimension)
+    {
+        ofLogError(LOG_MODULE, "diffetent dimension");
+        return 0;
+    }
+    
+    svm_node* node = new svm_node[mDimension + 1];
+    for (int i = 0; i < mDimension; ++i)
+    {
+        node[i].index = i + 1;
+        node[i].value = testVec[i];
+    }
+    node[mDimension].index = -1;
+    
+    int res = static_cast<int>(svm_predict(mModel, node));
+    
+    delete[] node;
+    return res;
 }
 
-bool ofxSvm::saveModelData(const string &save_file_name)
+void ofxSvm::saveModel(const string &filename)
 {
-    ofFile fout(save_file_name);
-    int res = svm_save_model(fout.getAbsolutePath().c_str(), model);
-    return res != 0;
+    if (mModel == NULL)
+    {
+        ofLogError(LOG_MODULE, "null model, befor do train or load model file");
+        return;
+    }
+    svm_save_model(ofToDataPath(filename).c_str(), mModel);
 }
 
-bool ofxSvm::loadModelData(const string &model_file_name)
+void ofxSvm::loadModel(const string &filename)
 {
-    ofFile fin(model_file_name);
-    model = svm_load_model(fin.getAbsolutePath().c_str());
-    return model != NULL;
+    mModel = svm_load_model(ofToDataPath(filename).c_str());
 }
 
-
-
-bool ofxSvm::scaling(const char *data_file_name, const char *output_file_name, const double x_lower, const double x_upper, const double y_lower, const double y_upper)
+vector<int> ofxSvm::getSupportVectorIndex()
 {
-    ofFile inf(data_file_name);
-    ofFile outf(output_file_name);
-    int res = svm_scale(inf.getAbsolutePath().c_str(), outf.getAbsolutePath().c_str(), x_lower, x_upper, y_lower, y_upper);
-    return res == 0;
+    vector<int> dst;
+    
+    if (mModel == NULL)
+    {
+        ofLogError(LOG_MODULE, "null model, befor do train or load model file");
+        return dst;
+    }
+    
+    const int num = svm_get_nr_sv(mModel);
+    int* indices = new int[num];
+    svm_get_sv_indices(mModel, indices);
+    for(int i = 0; i < num; ++i )
+    {
+        dst.push_back(indices[i] - 1);
+    }
+    delete[] indices;
+    return dst;
 }
-

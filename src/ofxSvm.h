@@ -5,92 +5,47 @@
 
 class ofxSvm
 {
-private:
-    struct svm_parameter param; ///< Training parameters
-    struct svm_model* model; ///< Model data
-    int cross_validation;
-    int nr_fold;
+    typedef multimap<int, vector<double> > data_type;
+    
+    svm_parameter   mParam;
+    svm_model       *mModel;
+    
+    int             mDimension;
+    data_type       mData;
+    
+    
+    void checkDimension(int length);
     
 public:
-    ofxSvm()
-    {
-        param.svm_type = C_SVC;
-        param.kernel_type = RBF;
-        param.degree = 3;
-        param.gamma = 0; // 1/n
-        param.coef0 = 0;
-        param.C = 1;
-        param.nu = 0.5;
-        param.cache_size = 100;
-        param.eps = 0.1;
-        param.p = 0.001;
-        param.shrinking = 1;
-        param.probability = 0;
-        cross_validation = 0;
-    }
+    ofxSvm();
+    virtual ~ofxSvm();
     
-    virtual ~ofxSvm()
-    {
-        if (model) svm_free_and_destroy_model(&model);
-    }
+    int     addData(int label, vector<double>& vec);
+    int     addData(int label, double* vec, int length);
+    void    creatData();
     
+    void    train();
+    int     predict(vector<double>& testVec);
     
-        
-    bool train(const string& dataset_file_name, const string& output_model_file_name = "");
+    void    saveModel(const string& filename);
+    void    loadModel(const string& filename);
     
-    bool predict(const string& test_file_name, const string& model_file_name,
-                 const string& result_file_name, const bool predict_probability = false);
+    vector<int> getSupportVectorIndex();
     
-    
-    void setSvmType(const int type) { param.svm_type = type; }
-    void setKernelType(const int type) { param.kernel_type = type; }
-    void setDegree(const float v) { param.degree = v; }
-    void setGamma(const float v) { param.gamma = v; }
-    void setCoef0(const float v) { param.coef0 = v; }
-    void setCost(const float v) { param.C = v; }
-    void setNu(const float v) { param.nu = v; }
-    void setCachssize(const float v) { param.cache_size = v; }
-    void setEpsilon(const float v) { param.eps = v; }
-    void setUseShrinking(const bool v) { param.shrinking = v ? 1 : 0; }
-    void setNumClossValidation(const int v) { nr_fold = v; }
-    
-    bool saveModelData(const string& save_file_name);
-    bool loadModelData(const string& model_file_name);
-    
-    
-public:
-    
-    // utility method
-
-    template<class Iterator>
-    static void writeFeatures(Iterator first, Iterator last, ofFile& file)
-    {
-        int i = 1;
-        first++;
-        while (first != last)
-        {
-            file << i << ":" << *first << " ";
-            i++;
-            first++;
-        }
-        file << "\n";
-    }
-    
-    template<typename container>
-    static void saveToFileDataset(const string& save_file_name, const container& dataset)
-    {
-        ofFile file(save_file_name, ofFile::WriteOnly);
-        for (const auto& data : dataset)
-        {
-            file << static_cast<int>(data[0]) << " ";
-            writeFeatures(data.begin(), data.end(), file);
-        }
-        file.close();
-    }
-
-    
-    static bool scaling(const char *data_file_name, const char *output_file_name,
-                        const double x_lower, const double x_upper,
-                        const double y_lower, const double y_upper);
-
+    inline void setSvmType(const int type)      { mParam.svm_type = type;           }
+    inline void setKernelType(const int type)   { mParam.kernel_type = type;        }
+    inline void setDegree(const double v)       { mParam.degree = v;                }
+    inline void setGamma(const double v)        { mParam.gamma = v;                 }
+    inline void setCoef0(const double v)        { mParam.coef0 = v;                 }
+    inline void setCost(const double v)         { mParam.C = v;                     }
+    inline void setNu(const double v)           { mParam.nu = v;                    }
+    inline void setCachssize(const double v)    { mParam.cache_size = v;            }
+    inline void setEpsilon(const double v)      { mParam.eps = v;                   }
+    inline void setP(const double v)            { mParam.p = v;                     }
+    inline void setNrWeight(const int v)        { mParam.nr_weight = v;             }
+    inline void setShrinking(const bool v)      { mParam.shrinking = v ? 1 : 0;     }
+    inline void setProbability(const bool v)    { mParam.probability = v ? 1 : 0;   }
+    inline void setWeightLabel(int* v)          { mParam.weight_label = v;          }
+    inline void setWeight(double* v)            { mParam.weight = v;                }
+    void        defaultParams();
 };

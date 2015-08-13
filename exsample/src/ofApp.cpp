@@ -1,62 +1,173 @@
 #include "ofApp.h"
 
-template<typename T>
-vector<T> makeData(int label)
+double rand_normal( double mu, double sigma )
 {
-    vector<T> data;
-    data.push_back(label);
-    data.push_back(ofRandom(10));
-    data.push_back(ofRandom(10));
-    data.push_back(ofRandom(10));
-    data.push_back(ofRandom(10));
-    data.push_back(ofRandom(10));
-    return data;
+    double z = sqrt( -2.0 * log(ofRandomuf()) ) * sin( 2.0 * M_PI * ofRandomuf() );
+    return ofClamp(mu + sigma * z, 0, 1);
 }
 
-void ofApp::setup(){
+void ofApp::setup()
+{
+    ofSetLogLevel(OF_LOG_VERBOSE);
     
-    // make training data
-    typedef float type;
-    vector<vector<type> >train_dataset;
-    train_dataset.push_back(makeData<type>(0));
-    train_dataset.push_back(makeData<type>(0));
-    train_dataset.push_back(makeData<type>(1));
-    train_dataset.push_back(makeData<type>(1));
-    ofxSvm::saveToFileDataset("train_dataset", train_dataset);
+    mSamples.resize(3);
+    mCurrentLabel = 0;
+    
+    for (int i = 0; i < 10; ++i)
+        mSamples[0].push_back(ofVec2f(rand_normal(0.5, 0.2) * ofGetWidth(),
+                                      rand_normal(0.3, 0.2) * ofGetHeight()));
+    for (int i = 0; i < 10; ++i)
+        mSamples[1].push_back(ofVec2f(rand_normal(0.3, 0.2) * ofGetWidth(),
+                                      rand_normal(0.7, 0.2) * ofGetHeight()));
+    for (int i = 0; i < 10; ++i)
+        mSamples[2].push_back(ofVec2f(rand_normal(0.7, 0.2) * ofGetWidth(),
+                                      rand_normal(0.7, 0.2) * ofGetHeight()));
     
     
-    // scaling training dataset
-    ofxSvm::scaling("train_dataset", "train_dataset.scale", -1, 1, 0, 1);
+    mPredictedPanel.allocate(ofGetWidth(), ofGetHeight(), OF_IMAGE_COLOR);
+    unsigned char* pix = mPredictedPanel.getPixels();
+    const int size = mPredictedPanel.getWidth() * mPredictedPanel.getHeight() * 3;
+    for (int i = 0; i < size; ++i)
+    {
+        pix[i] = 99; // default color
+    }
+    mPredictedPanel.update();
+}
+
+void ofApp::draw()
+{
+    mPredictedPanel.draw(0, 0);
     
-    // train
-    mSvm.train("train_dataset.scale", "model");
-    mSvm.saveModelData("model");
+    for (int i = 0; i < mSamples.size(); ++i)
+    {
+        ofSetColor(ofColor::fromHsb(i * (255 / 3), 255, 255));
+        for (int j = 0; j < mSamples[i].size(); ++j)
+        {
+            ofCircle(mSamples[i][j], 4);
+        }
+    }
     
-    OF_EXIT_APP(0)
+    
+    stringstream ss;
+    ss << "mouse click: put new vector" << endl;
+    ss << "1/2/3 key: change label" << endl;
+    ss << "c key: crear all vectors" << endl;
+    ss << "space bar: SVM train and show result of predict";
+    ofSetColor(255, 255, 255);
+    ofDrawBitmapString(ss.str(), 10, 10);
+}
+
+void ofApp::keyPressed(int key)
+{
+    switch (key)
+    {
+        case '1': mCurrentLabel = 0; break;
+        case '2': mCurrentLabel = 1; break;
+        case '3': mCurrentLabel = 2; break;
+        case 'c': for (auto& e : mSamples) e.clear(); break;
+        case ' ': svm_execute(); break;
+        case 's': mSvm.saveModel("model.dat"); break;
+        case 'l': mSvm.loadModel("model.dat"); break;
+    }
+}
+
+void ofApp::mousePressed(int x, int y, int button)
+{
+    mSamples[mCurrentLabel].push_back(ofVec2f(x, y));
+}
+
+void ofApp::svm_execute()
+{
+    mSvm.creatData();
+    
+    
+    
+    // add train data
+    //--------------------------------------------------------
+    for (int i = 0; i < mSamples.size(); ++i)
+    {
+        for (int j = 0; j < mSamples[i].size(); ++j)
+        {
+            vector<double> vec;
+            vec.push_back(mSamples[i][j].x);
+            vec.push_back(mSamples[i][j].y);
+            mSvm.addData(i + 1, vec);
+        }
+    }
+    
+    
+    
+    // set train parameters
+    //--------------------------------------------------------
+    mSvm.setSvmType(C_SVC);
+    mSvm.setKernelType(LINEAR);
+    mSvm.setCost(1);
+    mSvm.setGamma(0.1);
+    mSvm.setCoef0(0);
+    mSvm.setCachssize(100);
+    mSvm.setEpsilon(1e-3);
+    mSvm.setShrinking(true);
+    mSvm.setProbability(false);
+    mSvm.setDegree(3);
+    mSvm.setNu(0.5);
+    mSvm.setP(0.1);
+    mSvm.setNrWeight(0);
+    mSvm.setWeightLabel(NULL);
+    mSvm.setWeight(NULL);
+    
+    
+    
+    // do train
+    //--------------------------------------------------------
+    mSvm.train();
+    
+    
     
     // predict
-    mSvm.predict("dataset", "model", "result");
+    //--------------------------------------------------------
+    ofLogNotice() << "predict training samples ...";
+    ofLogNotice() << "(target label) => (predictive result)";
+    
+    int correct_count = 0;
+    int wrong_count = 0;
+    for (int i = 0; i < mSamples.size(); ++i)
+    {
+        for (int j = 0; j < mSamples[i].size(); ++j)
+        {
+            vector<double> testvec;
+            testvec.push_back(mSamples[i][j].x);
+            testvec.push_back(mSamples[i][j].y);
+            int predictedLabel = mSvm.predict(testvec);
+            ofLogNotice() << (i + 1) << " => " << predictedLabel;
+            
+            if (predictedLabel == (i + 1))
+                ++correct_count;
+            else
+                ++wrong_count;
+        }
+    }
+    ofLogNotice() << "done";
+    ofLogNotice() << "RESULT : correct=" << correct_count << " : wrong=" << wrong_count;
+    ofLogNotice() << "Accuracy[%]=" << (static_cast<double>(correct_count) / static_cast<double>(correct_count + wrong_count) * 100.0);
     
     
-    // test data
-//    data.clear();
-//    data.push_back(2.2);
-//    data.push_back(42.6);
-//    data.push_back(40.2);
-//    data.push_back(10.2);
-//    data.push_back(1.4);
-//    mTestData.setData(0, data);
     
-    // test
-//    mSvm.loadModelData("model");
-//    mSvm.classify(mTestData);
-}
+    // update background color by predictive results
+    //--------------------------------------------------------
+    const int w = mPredictedPanel.getWidth();
+    const int h = mPredictedPanel.getHeight();
+    for (int y = 0; y < h; ++y)
+    {
+        for (int x = 0; x < w; ++x)
+        {
+            vector<double> testvec;
+            testvec.push_back(x);
+            testvec.push_back(y);
+            int predictedLabel = mSvm.predict(testvec);
+            mPredictedPanel.setColor(x, y, ofColor::fromHsb((predictedLabel -1) * (255 / 3), 255, 99));
+        }
+    }
+    mPredictedPanel.update();
+    
 
-void ofApp::update(){
-
-}
-
-void ofApp::draw(){
-    
-    
 }
