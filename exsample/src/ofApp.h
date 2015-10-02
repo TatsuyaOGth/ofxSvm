@@ -2,6 +2,7 @@
 
 #include "ofMain.h"
 #include "ofxSvm.h"
+#include "ofxGui.h"
 
 class ofApp : public ofBaseApp{
 public:
@@ -17,4 +18,8 @@ public:
     vector<int> mSupportVectors;
     int mCurrentLabel;
     ofImage mPredictedPanel;
+    
+    ofxPanel mGui;
+    ofParameter<float> mGamma;
+    ofParameter<float> mCost;
 };

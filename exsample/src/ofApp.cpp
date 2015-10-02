@@ -32,6 +32,10 @@ void ofApp::setup()
         pix[i] = 99; // default color
     }
     mPredictedPanel.update();
+    
+    mGui.setup("PARAMETERS");
+    mGui.add(mGamma.set("GAMMA", 0.1, 0.0, 10.0));
+    mGui.add(mCost.set("COST", 1, 0, 10));
 }
 
 void ofApp::draw()
@@ -47,6 +51,7 @@ void ofApp::draw()
         }
     }
     
+    mGui.draw();
     
     stringstream ss;
     ss << "mouse click: put new vector" << endl;
@@ -78,7 +83,7 @@ void ofApp::mousePressed(int x, int y, int button)
 
 void ofApp::svm_execute()
 {
-    mSvm.creatData();
+    mSvm.clearData();
     
     
     
@@ -101,8 +106,8 @@ void ofApp::svm_execute()
     //--------------------------------------------------------
     mSvm.setSvmType(C_SVC);
     mSvm.setKernelType(LINEAR);
-    mSvm.setCost(1);
-    mSvm.setGamma(0.1);
+    mSvm.setCost(mCost);
+    mSvm.setGamma(mGamma);
     mSvm.setCoef0(0);
     mSvm.setCachssize(100);
     mSvm.setEpsilon(1e-3);

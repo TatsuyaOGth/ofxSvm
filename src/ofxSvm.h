@@ -14,7 +14,10 @@ class ofxSvm
     data_type       mData;
     
     
-    void checkDimension(int length);
+    void            checkDimension(int length);
+    
+    static void     printStdOut(const char *s);
+
     
 public:
     ofxSvm();
@@ -22,7 +25,7 @@ public:
     
     int     addData(int label, vector<double>& vec);
     int     addData(int label, double* vec, int length);
-    void    creatData();
+    void    clearData();
     
     void    train();
     int     predict(vector<double>& testVec);

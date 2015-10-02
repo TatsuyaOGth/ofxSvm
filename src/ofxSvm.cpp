@@ -5,6 +5,7 @@
 ofxSvm::ofxSvm() : mModel(NULL), mDimension(0)
 {
     defaultParams();
+    svm_set_print_string_function(ofxSvm::printStdOut);
 }
 
 ofxSvm::~ofxSvm()
@@ -38,6 +39,12 @@ void ofxSvm::checkDimension(int length)
         ofLogWarning(LOG_MODULE, "got different dimensions, set data");
         mData.clear();
     }
+}
+
+void ofxSvm::printStdOut(const char *s)
+{
+    fputs(s, stdout);
+    fflush(stdout);
 }
 
 int ofxSvm::addData(int label, vector<double>& vec)
@@ -81,7 +88,7 @@ int ofxSvm::addData(int label, double *vec, int length)
     return mData.size();
 }
 
-void ofxSvm::creatData()
+void ofxSvm::clearData()
 {
     mData.clear();
 }
@@ -126,11 +133,22 @@ void ofxSvm::train()
         }
     }
     
+    ofLogVerbose(LOG_MODULE, "Checking parameters");
+    const char* check_res = svm_check_parameter(&prob, &mParam);
+    if (check_res != NULL)
+    {
+        ofLogError(LOG_MODULE, ofToString(check_res));
+        delete[] node;
+        delete[] prob.x;
+        delete[] prob.y;
+        return;
+    }
+    
     ofLogVerbose(LOG_MODULE, "Start train...");
     
     mModel = svm_train(&prob, &mParam);
     
-    ofLogVerbose(LOG_MODULE, "Finished train!");
+    ofLogVerbose(LOG_MODULE, "Finish");
     
     delete[] node;
     delete[] prob.x;
@@ -147,6 +165,11 @@ int ofxSvm::predict(vector<double>& testVec)
     if (testVec.size() != mDimension)
     {
         ofLogError(LOG_MODULE, "diffetent dimension");
+        return 0;
+    }
+    if (svm_check_probability_model(mModel))
+    {
+        ofLogError(LOG_MODULE, "provavility model is not available");
         return 0;
     }
     
