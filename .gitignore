@@ -13,3 +13,4 @@ bin/*.out
 */*.xcodeproj/xcuserdata/
 *.app
 
+example/bin/data
