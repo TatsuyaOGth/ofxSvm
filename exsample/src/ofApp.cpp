@@ -1,30 +1,31 @@
 #include "ofApp.h"
 
-double rand_normal( double mu, double sigma )
-{
-    double z = sqrt( -2.0 * log(ofRandomuf()) ) * sin( 2.0 * M_PI * ofRandomuf() );
-    return ofClamp(mu + sigma * z, 0, 1);
-}
+double rand_normal( double mu, double sigma );
 
-void ofApp::setup()
-{
-    ofSetLogLevel(OF_LOG_VERBOSE);
+void ofApp::setup(){
     
+    ofSetLogLevel(OF_LOG_VERBOSE);
+    ofBackground(60);
+    
+    // make sample data
+    //--------------------------------------------------------
     mSamples.resize(3);
     mCurrentLabel = 0;
     
     for (int i = 0; i < 10; ++i)
         mSamples[0].push_back(ofVec2f(rand_normal(0.5, 0.2) * ofGetWidth(),
-                                      rand_normal(0.3, 0.2) * ofGetHeight()));
+                                      rand_normal(0.3, 0.2) * ofGetHeight() - 150)); //<----- 150 is margin for bottom of the window
     for (int i = 0; i < 10; ++i)
         mSamples[1].push_back(ofVec2f(rand_normal(0.3, 0.2) * ofGetWidth(),
-                                      rand_normal(0.7, 0.2) * ofGetHeight()));
+                                      rand_normal(0.7, 0.2) * ofGetHeight() - 150));
     for (int i = 0; i < 10; ++i)
         mSamples[2].push_back(ofVec2f(rand_normal(0.7, 0.2) * ofGetWidth(),
-                                      rand_normal(0.7, 0.2) * ofGetHeight()));
+                                      rand_normal(0.7, 0.2) * ofGetHeight() - 150));
     
     
-    mPredictedPanel.allocate(ofGetWidth(), ofGetHeight(), OF_IMAGE_COLOR);
+    // initialize predicted pixels
+    //--------------------------------------------------------
+    mPredictedPanel.allocate(ofGetWidth(), ofGetHeight() - 150, OF_IMAGE_COLOR);
     unsigned char* pix = mPredictedPanel.getPixels();
     const int size = mPredictedPanel.getWidth() * mPredictedPanel.getHeight() * 3;
     for (int i = 0; i < size; ++i)
@@ -33,15 +34,27 @@ void ofApp::setup()
     }
     mPredictedPanel.update();
     
+    
+    // setup gui panel
+    //--------------------------------------------------------
     mGui.setup("PARAMETERS");
     mGui.add(mGamma.set("GAMMA", 0.1, 0.0, 10.0));
     mGui.add(mCost.set("COST", 1, 0, 10));
+    mGui.setPosition(10, 580);
 }
 
-void ofApp::draw()
-{
+
+
+void ofApp::draw(){
+    
+    // draw predicted pixels
+    //--------------------------------------------------------
     mPredictedPanel.draw(0, 0);
     
+    
+    
+    // draw sample data
+    //--------------------------------------------------------
     for (int i = 0; i < mSamples.size(); ++i)
     {
         ofSetColor(ofColor::fromHsb(i * (255 / 3), 255, 255));
@@ -51,21 +64,29 @@ void ofApp::draw()
         }
     }
     
-    mGui.draw();
     
+    // draw explanation text
+    //--------------------------------------------------------
     stringstream ss;
     ss << "mouse click: put new vector" << endl;
     ss << "1/2/3 key: change label" << endl;
     ss << "c key: crear all vectors" << endl;
     ss << "space bar: SVM train and show result of predict";
     ofSetColor(255, 255, 255);
-    ofDrawBitmapString(ss.str(), 10, 10);
+    ofDrawBitmapString(ss.str(), 10, 520);
+    
+    
+    
+    // draw gui panel
+    //--------------------------------------------------------
+    mGui.draw();
 }
 
-void ofApp::keyPressed(int key)
-{
-    switch (key)
-    {
+
+
+void ofApp::keyPressed(int key){
+    
+    switch (key){
         case '1': mCurrentLabel = 0; break;
         case '2': mCurrentLabel = 1; break;
         case '3': mCurrentLabel = 2; break;
@@ -76,16 +97,20 @@ void ofApp::keyPressed(int key)
     }
 }
 
-void ofApp::mousePressed(int x, int y, int button)
-{
-    mSamples[mCurrentLabel].push_back(ofVec2f(x, y));
+
+
+void ofApp::mousePressed(int x, int y, int button){
+    if (y < 500)
+    {
+        mSamples[mCurrentLabel].push_back(ofVec2f(x, y));
+    }
 }
 
-void ofApp::svm_execute()
-{
+
+
+void ofApp::svm_execute(){
+    
     mSvm.clearData();
-    
-    
     
     // add train data
     //--------------------------------------------------------
@@ -175,4 +200,11 @@ void ofApp::svm_execute()
     mPredictedPanel.update();
     
 
+}
+
+
+
+double rand_normal( double mu, double sigma ){
+    double z = sqrt( -2.0 * log(ofRandomuf()) ) * sin( 2.0 * M_PI * ofRandomuf() );
+    return ofClamp(mu + sigma * z, 0, 1);
 }
