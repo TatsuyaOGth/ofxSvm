@@ -38,7 +38,7 @@ void ofApp::setup(){
     // setup gui panel
     //--------------------------------------------------------
     mGui.setup("PARAMETERS");
-    mGui.add(mGamma.set("GAMMA", 0.1, 0.0, 10.0));
+    mGui.add(mGamma.set("GAMMA", 0.1, 0.0, 1));
     mGui.add(mCost.set("COST", 1, 0, 10));
     mGui.setPosition(10, 580);
 }
@@ -124,6 +124,11 @@ void ofApp::svm_execute(){
             mSvm.addData(i + 1, vec);
         }
     }
+    
+    
+    // scaling
+    //--------------------------------------------------------
+    //mSvm.scale(0.0, 1.0);
     
     
     
