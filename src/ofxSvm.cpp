@@ -5,14 +5,26 @@
 #define min(x,y) (((x)<(y))?(x):(y))
 
 
-ofxSvm::ofxSvm() : mModel(NULL), mDimension(0)
+ofxSvm::Data::Data() :  mDimension(0)
 {
-    defaultParams();
-    svm_set_print_string_function(ofxSvm::printStdOut);
     mScaleParameter.isEnable = false;
 }
 
+
+
+
+ofxSvm::ofxSvm() : mModel(NULL), mTrainData(NULL)
+{
+    defaultParams();
+    svm_set_print_string_function(ofxSvm::printStdOut);
+}
+
 ofxSvm::~ofxSvm()
+{
+    clear();
+}
+
+void ofxSvm::clear()
 {
     svm_destroy_param(&mParam);
     svm_free_and_destroy_model(&mModel);
@@ -36,7 +48,7 @@ void ofxSvm::defaultParams()
     mParam.weight       = NULL;
 }
 
-void ofxSvm::checkDimension(int length)
+void ofxSvm::Data::checkDimension(int length)
 {
     if (mDimension > 0 && mDimension != length)
     {
@@ -51,7 +63,7 @@ void ofxSvm::printStdOut(const char *s)
     fflush(stdout);
 }
 
-int ofxSvm::addData(double label, vector<double>& vec)
+int ofxSvm::Data::add(double label, vector<double>& vec)
 {
     checkDimension(vec.size());
     
@@ -70,7 +82,7 @@ int ofxSvm::addData(double label, vector<double>& vec)
     return mData.size();
 }
 
-int ofxSvm::addData(double label, double *vec, int length)
+int ofxSvm::Data::add(double label, double *vec, int length)
 {
     checkDimension(length);
     
@@ -94,12 +106,12 @@ int ofxSvm::addData(double label, double *vec, int length)
     return mData.size();
 }
 
-void ofxSvm::clearData()
+void ofxSvm::Data::clear()
 {
     mData.clear();
 }
 
-bool ofxSvm::scale(double lower, double upper, double y_lower, double y_upper)
+bool ofxSvm::Data::scale(double lower, double upper, double y_lower, double y_upper)
 {
     bool y_scaling = false;
     if (y_lower != 0 && y_upper != 0) y_scaling = true;
@@ -138,8 +150,8 @@ bool ofxSvm::scale(double lower, double upper, double y_lower, double y_upper)
     
     
     /* pass 2: find out min/max value */
-    vector_type feature_max(max_index + 1);
-    vector_type feature_min(max_index + 1);
+    vector<double> feature_max(max_index + 1);
+    vector<double> feature_min(max_index + 1);
     double y_max = -DBL_MAX;
     double y_min =  DBL_MAX;
 
@@ -171,7 +183,7 @@ bool ofxSvm::scale(double lower, double upper, double y_lower, double y_upper)
     }
     
     /* pass 3: scale */
-    data_type scaled_data;
+    multimap<double, vector<double> > scaled_data;
     for (const auto& data : mData)
     {
         int next_index = 1;
@@ -190,7 +202,7 @@ bool ofxSvm::scale(double lower, double upper, double y_lower, double y_upper)
             scaled_label = target;
         }
 
-        vector_type scaled_vector;
+        vector<double> scaled_vector;
         for (int i = 0; i < data.second.size(); ++i)
         {
             /* skip single-valued attribute */
@@ -258,45 +270,47 @@ bool ofxSvm::scale(double lower, double upper, double y_lower, double y_upper)
 
 
 
-void ofxSvm::train()
+void ofxSvm::train(const Data& data)
 {
     svm_problem prob;
     
-    prob.l = mData.size();
+    const multimap<double, vector<double> >& v = data.mData;
+    
+    prob.l = v.size();
     prob.y = new double[prob.l];
     {
-        data_type::iterator it = mData.begin();
+        multimap<double, vector<double> >::const_iterator it = v.begin();
         int i = 0;
-        while (it != mData.end())
+        while (it != v.end())
         {
             prob.y[i] = it->first;
             ++it; ++i;
         }
     }
     
-    if(mParam.gamma == 0)
+    if (mParam.gamma == 0)
     {
-        mParam.gamma = 1.0 / mDimension;
+        mParam.gamma = 1.0 / data.mDimension;
     }
     
-    int nodeLength = mDimension + 1;
+    int nodeLength = data.mDimension + 1;
     svm_node* node = new svm_node[prob.l * nodeLength];
     prob.x = new svm_node*[prob.l];
     {
-        data_type::iterator it = mData.begin();
+        multimap<double, vector<double> >::const_iterator it = v.begin();
         int i = 0;
-        while (it != mData.end())
+        while (it != v.end())
         {
             if (it->second.empty() == false)
             {
                 prob.x[i] = node + i * nodeLength;
-                for (int j = 0; j < mDimension; ++j)
+                for (int j = 0; j < data.mDimension; ++j)
                 {
                     prob.x[i][j].index = j + 1;
                     prob.x[i][j].value = it->second[j];
                 }
             }
-            prob.x[i][mDimension].index = -1; // delimiter
+            prob.x[i][data.mDimension].index = -1; // delimiter
             ++it; ++i;
         }
     }
@@ -321,62 +335,62 @@ void ofxSvm::train()
     delete[] node;
     delete[] prob.x;
     delete[] prob.y;
+    
+    mTrainData = &data;
 }
 
-int ofxSvm::predict(const vector<double>& testVec)
+vector<double> ofxSvm::predict(const Data& data)
 {
+    vector<double> res;
+    
+    if (mTrainData == NULL)
+    {
+        ofLogError(LOG_MODULE, "did not trained yet");
+        return res;
+    }
     if (mModel == NULL)
     {
         ofLogError(LOG_MODULE, "null model, befor do train or load model file");
-        return 0;
-    }
-    if (testVec.size() != mDimension)
-    {
-        ofLogError(LOG_MODULE, "diffetent dimension");
-        return 0;
+        return res;
     }
     if (svm_check_probability_model(mModel))
     {
         ofLogError(LOG_MODULE, "provavility model is not available");
-        return 0;
+        return res;
+    }
+    if (data.mScaleParameter.isEnable != mTrainData->mScaleParameter.isEnable)
+    {
+        ofLogWarning(LOG_MODULE, "different scale");
     }
     
-    vector_type testVector(testVec);
-    
-    if (mScaleParameter.isEnable)
+    multimap<double, vector<double> >::const_iterator it = data.mData.begin();
+    while (it != data.mData.end())
     {
-        // scaling
-        vector_type scaled_vector;
-        for (int i = 0; i < testVec.size(); ++i)
+        const vector<double>& testVec = it->second;
+        
+        if (testVec.size() != mTrainData->mDimension)
         {
-            /* skip single-valued attribute */
-            if (mScaleParameter.feature_max[i] == mScaleParameter.feature_min[i]) continue;
-            
-            auto value = testVec[i];
-            double dstValue = 0;
-            if (value == mScaleParameter.feature_min[i])
-                dstValue = mScaleParameter.x_lower;
-            else if(value == mScaleParameter.feature_max[i])
-                dstValue = mScaleParameter.x_upper;
-            else
-                dstValue = mScaleParameter.x_lower + (mScaleParameter.x_upper-mScaleParameter.x_lower) * (value-mScaleParameter.feature_min[i]) / (mScaleParameter.feature_max[i]-mScaleParameter.feature_min[i]);
-            
-            scaled_vector.push_back(dstValue);
+            ofLogError(LOG_MODULE, "diffetent dimension");
+            res.push_back(-DBL_MAX);
+            continue;
         }
-        testVector.swap(scaled_vector);
+        
+        vector<double> testVector(testVec);
+        
+        svm_node* node = new svm_node[data.mDimension + 1];
+        for (int i = 0; i < data.mDimension; ++i)
+        {
+            node[i].index = i + 1;
+            node[i].value = testVector[i];
+        }
+        node[data.mDimension].index = -1;
+        
+        res.push_back( svm_predict(mModel, node) );
+        delete[] node;
+        
+        ++it;
     }
     
-    svm_node* node = new svm_node[mDimension + 1];
-    for (int i = 0; i < mDimension; ++i)
-    {
-        node[i].index = i + 1;
-        node[i].value = testVector[i];
-    }
-    node[mDimension].index = -1;
-    
-    int res = static_cast<int>(svm_predict(mModel, node));
-    
-    delete[] node;
     return res;
 }
 

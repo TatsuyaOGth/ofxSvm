@@ -4,7 +4,7 @@ double rand_normal( double mu, double sigma );
 
 void ofApp::setup(){
     
-    ofSetLogLevel(OF_LOG_VERBOSE);
+//    ofSetLogLevel(OF_LOG_VERBOSE);
     ofBackground(60);
     
     // make sample data
@@ -13,14 +13,14 @@ void ofApp::setup(){
     mCurrentLabel = 0;
     
     for (int i = 0; i < 10; ++i)
-        mSamples[0].push_back(ofVec2f(rand_normal(0.5, 0.2) * ofGetWidth(),
-                                      rand_normal(0.3, 0.2) * ofGetHeight() - 150)); //<----- 150 is margin for bottom of the window
+        mSamples[0].push_back(ofVec2f(rand_normal(0.5, 0.15) * ofGetWidth(),
+                                      rand_normal(0.3, 0.15) * ofGetHeight() - 150)); //<----- 150 is margin for bottom of the window
     for (int i = 0; i < 10; ++i)
-        mSamples[1].push_back(ofVec2f(rand_normal(0.3, 0.2) * ofGetWidth(),
-                                      rand_normal(0.7, 0.2) * ofGetHeight() - 150));
+        mSamples[1].push_back(ofVec2f(rand_normal(0.3, 0.15) * ofGetWidth(),
+                                      rand_normal(0.7, 0.15) * ofGetHeight() - 150));
     for (int i = 0; i < 10; ++i)
-        mSamples[2].push_back(ofVec2f(rand_normal(0.7, 0.2) * ofGetWidth(),
-                                      rand_normal(0.7, 0.2) * ofGetHeight() - 150));
+        mSamples[2].push_back(ofVec2f(rand_normal(0.7, 0.15) * ofGetWidth(),
+                                      rand_normal(0.7, 0.15) * ofGetHeight() - 150));
     
     
     // initialize predicted pixels
@@ -47,6 +47,9 @@ void ofApp::setup(){
 
 void ofApp::draw(){
     
+    ofBackground(30);
+    ofSetColor(255);
+    
     // draw predicted pixels
     //--------------------------------------------------------
     mPredictedPanel.draw(0, 0);
@@ -55,6 +58,7 @@ void ofApp::draw(){
     
     // draw sample data
     //--------------------------------------------------------
+    ofFill();
     for (int i = 0; i < mSamples.size(); ++i)
     {
         ofSetColor(ofColor::fromHsb(i * (255 / 3), 255, 255));
@@ -80,6 +84,17 @@ void ofApp::draw(){
     // draw gui panel
     //--------------------------------------------------------
     mGui.draw();
+    
+    
+    // draw cursor
+    //--------------------------------------------------------
+    if (ofGetMouseY() < ofGetHeight() - 150)
+    {
+        ofSetColor(ofColor::fromHsb(mCurrentLabel * (255 / 3), 255, 255));
+        ofNoFill();
+        ofSetLineWidth(2);
+        ofCircle(ofGetMouseX(), ofGetMouseY(), 5);
+    }
 }
 
 
@@ -110,7 +125,10 @@ void ofApp::mousePressed(int x, int y, int button){
 
 void ofApp::svm_execute(){
     
-    mSvm.clearData();
+    // reset
+    mTrainData.clear();
+    mSvm.clear();
+    
     
     // add train data
     //--------------------------------------------------------
@@ -121,14 +139,14 @@ void ofApp::svm_execute(){
             vector<double> vec;
             vec.push_back(mSamples[i][j].x);
             vec.push_back(mSamples[i][j].y);
-            mSvm.addData(i + 1, vec);
+            mTrainData.add(i + 1, vec);
         }
     }
     
     
     // scaling
     //--------------------------------------------------------
-    //mSvm.scale(0.0, 1.0);
+    //mTrainData.scale(0.0, 1.0);
     
     
     
@@ -154,12 +172,13 @@ void ofApp::svm_execute(){
     
     // do train
     //--------------------------------------------------------
-    mSvm.train();
+    mSvm.train(mTrainData);
     
     
     
     // predict
     //--------------------------------------------------------
+    mTestData.clear();
     ofLogNotice() << "predict training samples ...";
     ofLogNotice() << "(target label) => (predictive result)";
     
@@ -172,15 +191,27 @@ void ofApp::svm_execute(){
             vector<double> testvec;
             testvec.push_back(mSamples[i][j].x);
             testvec.push_back(mSamples[i][j].y);
-            int predictedLabel = mSvm.predict(testvec);
-            ofLogNotice() << (i + 1) << " => " << predictedLabel;
-            
-            if (predictedLabel == (i + 1))
+            mTestData.add(0, testvec);
+        }
+    }
+    
+    //mTestData.scale(-1, 1);
+    vector<double> predictResults = mSvm.predict(mTestData);
+    
+    vector<double>::iterator predictResIt = predictResults.begin();
+    for (int i = 0; i < mSamples.size(); ++i)
+    {
+        for (int j = 0; j < mSamples[i].size(); ++j)
+        {
+            ofLogNotice() << (i + 1) << " => " << *predictResIt;
+            if (*predictResIt == (i + 1))
                 ++correct_count;
             else
                 ++wrong_count;
+            ++predictResIt;
         }
     }
+
     ofLogNotice() << "done";
     ofLogNotice() << "RESULT : correct=" << correct_count << " : wrong=" << wrong_count;
     ofLogNotice() << "Accuracy[%]=" << (static_cast<double>(correct_count) / static_cast<double>(correct_count + wrong_count) * 100.0);
@@ -189,6 +220,7 @@ void ofApp::svm_execute(){
     
     // update background color by predictive results
     //--------------------------------------------------------
+    mTestData.clear();
     const int w = mPredictedPanel.getWidth();
     const int h = mPredictedPanel.getHeight();
     for (int y = 0; y < h; ++y)
@@ -198,18 +230,31 @@ void ofApp::svm_execute(){
             vector<double> testvec;
             testvec.push_back(x);
             testvec.push_back(y);
-            int predictedLabel = mSvm.predict(testvec);
-            mPredictedPanel.setColor(x, y, ofColor::fromHsb((predictedLabel -1) * (255 / 3), 255, 99));
+            mTestData.add(0, testvec);
         }
     }
-    mPredictedPanel.update();
     
-
+    predictResults.clear();
+//    mTestData.scale(-1, 1);
+    predictResults = mSvm.predict(mTestData);
+    assert(predictResults.size() == w * h);
+    
+    unsigned char* bgPix = mPredictedPanel.getPixels();
+    int ch = mPredictedPanel.getPixelsRef().getNumChannels();
+    for (int i = 0; i < predictResults.size(); ++i)
+    {
+        ofColor col = ofColor::fromHsb((predictResults[i] - 1) * (255 / mSamples.size()), 255, 99);
+        bgPix[i * ch + 0] = col.r;
+        bgPix[i * ch + 1] = col.g;
+        bgPix[i * ch + 2] = col.b;
+    }
+    mPredictedPanel.update();
 }
 
 
 
-double rand_normal( double mu, double sigma ){
+double rand_normal( double mu, double sigma )
+{
     double z = sqrt( -2.0 * log(ofRandomuf()) ) * sin( 2.0 * M_PI * ofRandomuf() );
     return ofClamp(mu + sigma * z, 0, 1);
 }
