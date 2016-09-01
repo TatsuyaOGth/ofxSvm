@@ -10,44 +10,6 @@ ofxSvm::Data::Data() :  mDimension(0)
     mScaleParameter.isEnable = false;
 }
 
-
-
-
-ofxSvm::ofxSvm() : mModel(NULL), mTrainData(NULL)
-{
-    defaultParams();
-    svm_set_print_string_function(ofxSvm::printStdOut);
-}
-
-ofxSvm::~ofxSvm()
-{
-    clear();
-}
-
-void ofxSvm::clear()
-{
-    svm_destroy_param(&mParam);
-    svm_free_and_destroy_model(&mModel);
-}
-
-void ofxSvm::defaultParams()
-{
-    mParam.svm_type     = C_SVC;
-    mParam.kernel_type  = RBF;
-    mParam.degree       = 3;
-    mParam.gamma        = 0; // 1/n
-    mParam.coef0        = 0;
-    mParam.C            = 1;
-    mParam.nu           = 0.5;
-    mParam.cache_size   = 100;
-    mParam.eps          = 0.1;
-    mParam.p            = 0.001;
-    mParam.shrinking    = 1;
-    mParam.probability  = 0;
-    mParam.weight_label = NULL;
-    mParam.weight       = NULL;
-}
-
 void ofxSvm::Data::checkDimension(int length)
 {
     if (mDimension > 0 && mDimension != length)
@@ -55,12 +17,6 @@ void ofxSvm::Data::checkDimension(int length)
         ofLogWarning(LOG_MODULE, "got different dimensions, set data");
         mData.clear();
     }
-}
-
-void ofxSvm::printStdOut(const char *s)
-{
-    fputs(s, stdout);
-    fflush(stdout);
 }
 
 int ofxSvm::Data::add(double label, vector<double>& vec)
@@ -109,6 +65,8 @@ int ofxSvm::Data::add(double label, double *vec, int length)
 void ofxSvm::Data::clear()
 {
     mData.clear();
+    mDimension = 0;
+    mScaleParameter.isEnable = false;
 }
 
 bool ofxSvm::Data::scale(double lower, double upper, double y_lower, double y_upper)
@@ -154,7 +112,7 @@ bool ofxSvm::Data::scale(double lower, double upper, double y_lower, double y_up
     vector<double> feature_min(max_index + 1);
     double y_max = -DBL_MAX;
     double y_min =  DBL_MAX;
-
+    
     for (int i = 0; i <= max_index; i++)
     {
         feature_max[i] = -DBL_MAX;
@@ -192,7 +150,7 @@ bool ofxSvm::Data::scale(double lower, double upper, double y_lower, double y_up
         if (y_scaling)
         {
             auto target = data.first;
-
+            
             if (target == y_min)
                 target = y_lower;
             else if(target == y_max)
@@ -201,7 +159,7 @@ bool ofxSvm::Data::scale(double lower, double upper, double y_lower, double y_up
                 (target - y_min)/(y_max-y_min);
             scaled_label = target;
         }
-
+        
         vector<double> scaled_vector;
         for (int i = 0; i < data.second.size(); ++i)
         {
@@ -270,6 +228,49 @@ bool ofxSvm::Data::scale(double lower, double upper, double y_lower, double y_up
 
 
 
+
+ofxSvm::ofxSvm() : mModel(NULL), mTrainData(NULL)
+{
+    defaultParams();
+    svm_set_print_string_function(ofxSvm::printStdOut);
+}
+
+ofxSvm::~ofxSvm()
+{
+    clear();
+}
+
+void ofxSvm::clear()
+{
+    svm_destroy_param(&mParam);
+    svm_free_and_destroy_model(&mModel);
+}
+
+void ofxSvm::defaultParams()
+{
+    mParam.svm_type     = C_SVC;
+    mParam.kernel_type  = RBF;
+    mParam.degree       = 3;
+    mParam.gamma        = -DBL_MAX; // 1/n
+    mParam.coef0        = 0;
+    mParam.C            = 1;
+    mParam.nu           = 0.5;
+    mParam.cache_size   = 100;
+    mParam.eps          = 0.001;
+    mParam.p            = 0.1;
+    mParam.shrinking    = 1;
+    mParam.probability  = 0;
+    mParam.weight_label = NULL;
+    mParam.weight       = NULL;
+}
+
+
+void ofxSvm::printStdOut(const char *s)
+{
+    fputs(s, stdout);
+    fflush(stdout);
+}
+
 void ofxSvm::train(const Data& data)
 {
     svm_problem prob;
@@ -288,9 +289,10 @@ void ofxSvm::train(const Data& data)
         }
     }
     
-    if (mParam.gamma == 0)
+    if (mParam.gamma == -DBL_MAX)
     {
         mParam.gamma = 1.0 / data.mDimension;
+        ofLogVerbose(LOG_MODULE, "Gamma set 1/n: " + ofToString(mParam.gamma));
     }
     
     int nodeLength = data.mDimension + 1;
@@ -372,6 +374,7 @@ vector<double> ofxSvm::predict(const Data& data)
         {
             ofLogError(LOG_MODULE, "diffetent dimension");
             res.push_back(-DBL_MAX);
+            ++it;
             continue;
         }
         
@@ -420,12 +423,11 @@ vector<int> ofxSvm::getSupportVectorIndex()
     }
     
     const int num = svm_get_nr_sv(mModel);
-    int* indices = new int[num];
-    svm_get_sv_indices(mModel, indices);
+    vector<int> indices(num);
+    svm_get_sv_indices(mModel, indices.data());
     for(int i = 0; i < num; ++i )
     {
         dst.push_back(indices[i] - 1);
     }
-    delete[] indices;
     return dst;
 }

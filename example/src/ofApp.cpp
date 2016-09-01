@@ -1,32 +1,22 @@
 #include "ofApp.h"
 
-double rand_normal( double mu, double sigma );
+static double rand_normal( double mu, double sigma );
+static vector<vector<ofVec2f> > getRandomPoints();
 
 void ofApp::setup(){
     
-//    ofSetLogLevel(OF_LOG_VERBOSE);
+    ofSetLogLevel(OF_LOG_VERBOSE);
     ofBackground(60);
     
     // make sample data
     //--------------------------------------------------------
-    mSamples.resize(3);
+    mSamples = getRandomPoints();
     mCurrentLabel = 0;
-    
-    for (int i = 0; i < 10; ++i)
-        mSamples[0].push_back(ofVec2f(rand_normal(0.5, 0.15) * ofGetWidth(),
-                                      rand_normal(0.3, 0.15) * ofGetHeight() - 150)); //<----- 150 is margin for bottom of the window
-    for (int i = 0; i < 10; ++i)
-        mSamples[1].push_back(ofVec2f(rand_normal(0.3, 0.15) * ofGetWidth(),
-                                      rand_normal(0.7, 0.15) * ofGetHeight() - 150));
-    for (int i = 0; i < 10; ++i)
-        mSamples[2].push_back(ofVec2f(rand_normal(0.7, 0.15) * ofGetWidth(),
-                                      rand_normal(0.7, 0.15) * ofGetHeight() - 150));
-    
     
     // initialize predicted pixels
     //--------------------------------------------------------
     mPredictedPanel.allocate(ofGetWidth(), ofGetHeight() - 150, OF_IMAGE_COLOR);
-    unsigned char* pix = mPredictedPanel.getPixels();
+    unsigned char* pix = mPredictedPanel.getPixels().getData();
     const int size = mPredictedPanel.getWidth() * mPredictedPanel.getHeight() * 3;
     for (int i = 0; i < size; ++i)
     {
@@ -38,8 +28,8 @@ void ofApp::setup(){
     // setup gui panel
     //--------------------------------------------------------
     mGui.setup("PARAMETERS");
-    mGui.add(mGamma.set("GAMMA", 0.1, 0.0, 1));
-    mGui.add(mCost.set("COST", 1, 0, 10));
+    mGui.add(mGamma.set("GAMMA", 1, 0.01, 100));
+    mGui.add(mCost.set("COST", 10, 0, 100));
     mGui.setPosition(10, 580);
 }
 
@@ -64,7 +54,7 @@ void ofApp::draw(){
         ofSetColor(ofColor::fromHsb(i * (255 / 3), 255, 255));
         for (int j = 0; j < mSamples[i].size(); ++j)
         {
-            ofCircle(mSamples[i][j], 4);
+            ofDrawCircle(mSamples[i][j], 4);
         }
     }
     
@@ -93,7 +83,7 @@ void ofApp::draw(){
         ofSetColor(ofColor::fromHsb(mCurrentLabel * (255 / 3), 255, 255));
         ofNoFill();
         ofSetLineWidth(2);
-        ofCircle(ofGetMouseX(), ofGetMouseY(), 5);
+        ofDrawCircle(ofGetMouseX(), ofGetMouseY(), 5);
     }
 }
 
@@ -106,6 +96,7 @@ void ofApp::keyPressed(int key){
         case '2': mCurrentLabel = 1; break;
         case '3': mCurrentLabel = 2; break;
         case 'c': for (auto& e : mSamples) e.clear(); break;
+        case 'r': mSamples = getRandomPoints(); break;
         case ' ': svm_execute(); break;
         case 's': mSvm.saveModel("model.dat"); break;
         case 'l': mSvm.loadModel("model.dat"); break;
@@ -146,28 +137,26 @@ void ofApp::svm_execute(){
     
     // scaling
     //--------------------------------------------------------
-    //mTrainData.scale(0.0, 1.0);
+    //mTrainData.scale(-1, 1);
     
     
     
     // set train parameters
     //--------------------------------------------------------
-    mSvm.setSvmType(C_SVC);
-    mSvm.setKernelType(LINEAR);
+    mSvm.setSvmType(ofxSvm::C_SVC);
+    mSvm.setKernelType(ofxSvm::POLY);
     mSvm.setCost(mCost);
     mSvm.setGamma(mGamma);
-    mSvm.setCoef0(0);
+    mSvm.setCoef0(1);
     mSvm.setCachssize(100);
-    mSvm.setEpsilon(1e-3);
+    mSvm.setEpsilon(0.001);
     mSvm.setShrinking(true);
     mSvm.setProbability(false);
     mSvm.setDegree(3);
     mSvm.setNu(0.5);
     mSvm.setP(0.1);
     mSvm.setNrWeight(0);
-    mSvm.setWeightLabel(NULL);
-    mSvm.setWeight(NULL);
-    
+//    mSvm.defaultParams(); //<--- reset all parameter
     
     
     // do train
@@ -220,6 +209,7 @@ void ofApp::svm_execute(){
     
     // update background color by predictive results
     //--------------------------------------------------------
+    ofSetLogLevel(OF_LOG_SILENT);
     mTestData.clear();
     const int w = mPredictedPanel.getWidth();
     const int h = mPredictedPanel.getHeight();
@@ -233,14 +223,15 @@ void ofApp::svm_execute(){
             mTestData.add(0, testvec);
         }
     }
+    ofSetLogLevel(OF_LOG_VERBOSE);
     
     predictResults.clear();
-//    mTestData.scale(-1, 1);
+    //mTestData.scale(-1, 1);
     predictResults = mSvm.predict(mTestData);
     assert(predictResults.size() == w * h);
     
-    unsigned char* bgPix = mPredictedPanel.getPixels();
-    int ch = mPredictedPanel.getPixelsRef().getNumChannels();
+    unsigned char* bgPix = mPredictedPanel.getPixels().getData();
+    int ch = mPredictedPanel.getPixels().getNumChannels();
     for (int i = 0; i < predictResults.size(); ++i)
     {
         ofColor col = ofColor::fromHsb((predictResults[i] - 1) * (255 / mSamples.size()), 255, 99);
@@ -257,4 +248,20 @@ double rand_normal( double mu, double sigma )
 {
     double z = sqrt( -2.0 * log(ofRandomuf()) ) * sin( 2.0 * M_PI * ofRandomuf() );
     return ofClamp(mu + sigma * z, 0, 1);
+}
+
+vector<vector<ofVec2f> > getRandomPoints()
+{
+    vector<vector<ofVec2f> > pts(3);
+    
+    for (int i = 0; i < 10; ++i)
+        pts[0].emplace_back(ofVec2f(rand_normal(0.5, 0.15) * ofGetWidth(),
+                                    rand_normal(0.3, 0.15) * ofGetHeight() - 150)); //150 is margin for bottom of the window
+    for (int i = 0; i < 10; ++i)
+        pts[1].emplace_back(ofVec2f(rand_normal(0.3, 0.15) * ofGetWidth(),
+                                    rand_normal(0.7, 0.15) * ofGetHeight() - 150));
+    for (int i = 0; i < 10; ++i)
+        pts[2].emplace_back(ofVec2f(rand_normal(0.7, 0.15) * ofGetWidth(),
+                                    rand_normal(0.7, 0.15) * ofGetHeight() - 150));
+    return pts;
 }

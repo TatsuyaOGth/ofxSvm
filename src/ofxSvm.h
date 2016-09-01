@@ -37,13 +37,9 @@ public:
 
     };
     
-    
-protected:
-    svm_parameter   mParam;
-    svm_model       *mModel;
-    Data const      *mTrainData;
-    
-    static void     printStdOut(const char *s);
+    // including namespace
+    enum { C_SVC, NU_SVC, ONE_CLASS, EPSILON_SVR, NU_SVR };	/* svm_type */
+    enum { LINEAR, POLY, RBF, SIGMOID, PRECOMPUTED }; /* kernel_type */
 
     
 public:
@@ -76,4 +72,11 @@ public:
     inline void setWeightLabel(int* v)          { mParam.weight_label = v;          }
     inline void setWeight(double* v)            { mParam.weight = v;                }
     void        defaultParams();
+    
+protected:
+    svm_parameter   mParam;
+    svm_model       *mModel;
+    Data const      *mTrainData;
+    
+    static void     printStdOut(const char *s);
 };
