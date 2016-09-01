@@ -5,30 +5,54 @@
 
 class ofxSvm
 {
-    typedef multimap<int, vector<double> > data_type;
+public:
+    class Data
+    {
+        friend class ofxSvm;
+        
+        multimap<double, vector<double> > mData;
+        int mDimension;
+        
+        struct ScaleParameter
+        {
+            bool isEnable;
+            double x_lower, x_upper, y_lower, y_upper;
+            double y_min, y_max;
+            vector<double> feature_max, feature_min;
+        };
+        struct ScaleParameter mScaleParameter;
+        
+        void checkDimension(int length);
+        
+    public:
+        Data();
+        
+        int     add(double label, vector<double>& vec);
+        int     add(double label, double* vec, int length);
+        
+        void    clear();
+        
+        bool    scale(double lower, double upper, double y_lower = 0, double y_upper = 0);
+        bool    hasScaleParameter() { return mScaleParameter.isEnable; }
+
+    };
     
-    svm_parameter   mParam;
-    svm_model       *mModel;
-    
-    int             mDimension;
-    data_type       mData;
-    
-    
-    void checkDimension(int length);
+    // including namespace
+    enum { C_SVC, NU_SVC, ONE_CLASS, EPSILON_SVR, NU_SVR };	/* svm_type */
+    enum { LINEAR, POLY, RBF, SIGMOID, PRECOMPUTED }; /* kernel_type */
+
     
 public:
     ofxSvm();
     virtual ~ofxSvm();
     
-    int     addData(int label, vector<double>& vec);
-    int     addData(int label, double* vec, int length);
-    void    creatData();
-    
-    void    train();
-    int     predict(vector<double>& testVec);
+    void    train(const Data& data);
+    vector<double>  predict(const Data& data);
     
     void    saveModel(const string& filename);
     void    loadModel(const string& filename);
+    
+    void    clear();
     
     vector<int> getSupportVectorIndex();
     
@@ -48,4 +72,11 @@ public:
     inline void setWeightLabel(int* v)          { mParam.weight_label = v;          }
     inline void setWeight(double* v)            { mParam.weight = v;                }
     void        defaultParams();
+    
+protected:
+    svm_parameter   mParam;
+    svm_model       *mModel;
+    Data const      *mTrainData;
+    
+    static void     printStdOut(const char *s);
 };
