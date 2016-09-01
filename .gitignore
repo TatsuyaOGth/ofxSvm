@@ -14,3 +14,8 @@ bin/*.out
 *.app
 
 example/bin/data
+example/config.make
+example/Makefile
+example/openFrameworks-Info.plist
+example/Project.xcconfig
+example/example.xcodeproj/project.pbxproj
