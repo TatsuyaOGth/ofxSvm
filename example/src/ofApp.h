@@ -13,8 +13,6 @@ public:
     void svm_execute();
     
     ofxSvm mSvm;
-    ofxSvm::Data mTrainData;
-    ofxSvm::Data mTestData;
     
     vector<vector<ofVec2f> > mSamples; // label, vector[]
     vector<int> mSupportVectors;

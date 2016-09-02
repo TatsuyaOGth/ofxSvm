@@ -95,7 +95,7 @@ void ofApp::keyPressed(int key){
         case '1': mCurrentLabel = 0; break;
         case '2': mCurrentLabel = 1; break;
         case '3': mCurrentLabel = 2; break;
-        case 'c': for (auto& e : mSamples) e.clear(); break;
+        case 'c': for (auto& e : mSamples) e.clear(); mSvm.clear(); break;
         case 'r': mSamples = getRandomPoints(); break;
         case ' ': svm_execute(); break;
         case 's': mSvm.saveModel("model.dat"); break;
@@ -116,8 +116,7 @@ void ofApp::mousePressed(int x, int y, int button){
 
 void ofApp::svm_execute(){
     
-    // reset
-    mTrainData.clear();
+    ofxSvm::Data mTrainData;
     mSvm.clear();
     
     
@@ -137,7 +136,7 @@ void ofApp::svm_execute(){
     
     // scaling
     //--------------------------------------------------------
-    //mTrainData.scale(-1, 1);
+    mTrainData.scale(0, 1);
     
     
     
@@ -167,7 +166,8 @@ void ofApp::svm_execute(){
     
     // predict
     //--------------------------------------------------------
-    mTestData.clear();
+    ofxSvm::Data mTestData;
+
     ofLogNotice() << "predict training samples ...";
     ofLogNotice() << "(target label) => (predictive result)";
     
@@ -184,7 +184,7 @@ void ofApp::svm_execute(){
         }
     }
     
-    //mTestData.scale(-1, 1);
+    mTestData.scale(0, 1);
     vector<double> predictResults = mSvm.predict(mTestData);
     
     vector<double>::iterator predictResIt = predictResults.begin();
@@ -226,7 +226,7 @@ void ofApp::svm_execute(){
     ofSetLogLevel(OF_LOG_VERBOSE);
     
     predictResults.clear();
-    //mTestData.scale(-1, 1);
+    mTestData.scale(0, 1);
     predictResults = mSvm.predict(mTestData);
     assert(predictResults.size() == w * h);
     
@@ -256,12 +256,12 @@ vector<vector<ofVec2f> > getRandomPoints()
     
     for (int i = 0; i < 10; ++i)
         pts[0].emplace_back(ofVec2f(rand_normal(0.5, 0.15) * ofGetWidth(),
-                                    rand_normal(0.3, 0.15) * ofGetHeight() - 150)); //150 is margin for bottom of the window
+                                    rand_normal(0.3, 0.15) * (ofGetHeight() - 150))); //150 is margin for bottom of the window
     for (int i = 0; i < 10; ++i)
         pts[1].emplace_back(ofVec2f(rand_normal(0.3, 0.15) * ofGetWidth(),
-                                    rand_normal(0.7, 0.15) * ofGetHeight() - 150));
+                                    rand_normal(0.7, 0.15) * (ofGetHeight() - 150)));
     for (int i = 0; i < 10; ++i)
         pts[2].emplace_back(ofVec2f(rand_normal(0.7, 0.15) * ofGetWidth(),
-                                    rand_normal(0.7, 0.15) * ofGetHeight() - 150));
+                                    rand_normal(0.7, 0.15) * (ofGetHeight() - 150)));
     return pts;
 }

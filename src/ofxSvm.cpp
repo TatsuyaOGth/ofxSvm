@@ -3,6 +3,7 @@
 #define LOG_MODULE "ofxSvm::"+string(__FUNCTION__)
 #define max(x,y) (((x)>(y))?(x):(y))
 #define min(x,y) (((x)<(y))?(x):(y))
+#define DEFAULT_D -DBL_MAX
 
 
 ofxSvm::Data::Data() :  mDimension(0)
@@ -66,6 +67,8 @@ void ofxSvm::Data::clear()
 {
     mData.clear();
     mDimension = 0;
+    mScaleParameter.feature_max.clear();
+    mScaleParameter.feature_min.clear();
     mScaleParameter.isEnable = false;
 }
 
@@ -108,12 +111,12 @@ bool ofxSvm::Data::scale(double lower, double upper, double y_lower, double y_up
     
     
     /* pass 2: find out min/max value */
-    vector<double> feature_max(max_index + 1);
-    vector<double> feature_min(max_index + 1);
+    vector<double> feature_max(max_index);
+    vector<double> feature_min(max_index);
     double y_max = -DBL_MAX;
     double y_min =  DBL_MAX;
     
-    for (int i = 0; i <= max_index; i++)
+    for (int i = 0; i < max_index; i++)
     {
         feature_max[i] = -DBL_MAX;
         feature_min[i] =  DBL_MAX;
@@ -133,7 +136,7 @@ bool ofxSvm::Data::scale(double lower, double upper, double y_lower, double y_up
             feature_min[i] = min(feature_min[i], data.second[i]);
         }
         
-        for(int i = data.second.size(); i <= max_index; i++)
+        for(int i = data.second.size(); i < max_index; i++)
         {
             feature_max[i] = max(feature_max[i], 0);
             feature_min[i] = min(feature_min[i], 0);
@@ -155,8 +158,8 @@ bool ofxSvm::Data::scale(double lower, double upper, double y_lower, double y_up
                 target = y_lower;
             else if(target == y_max)
                 target = y_upper;
-            else target = y_lower + (y_upper-y_lower) *
-                (target - y_min)/(y_max-y_min);
+            else
+                target = y_lower + (y_upper-y_lower) * (target - y_min)/(y_max-y_min);
             scaled_label = target;
         }
         
@@ -168,6 +171,7 @@ bool ofxSvm::Data::scale(double lower, double upper, double y_lower, double y_up
             
             auto value = data.second[i];
             double dstValue = 0;
+            
             if (value == feature_min[i])
                 dstValue = lower;
             else if(value == feature_max[i])
@@ -175,29 +179,9 @@ bool ofxSvm::Data::scale(double lower, double upper, double y_lower, double y_up
             else
                 dstValue = lower + (upper-lower) * (value-feature_min[i]) / (feature_max[i]-feature_min[i]);
             
-            if (dstValue != 0)
-            {
-                scaled_vector.push_back(dstValue);
-                new_num_nonzeros++;
-            }
-        }
-        
-        for (int i = data.second.size(); i <= max_index; i++)
-        {
-            auto value = 0;
-            double dstValue = 0;
-            if (value == feature_min[i])
-                dstValue = lower;
-            else if(value == feature_max[i])
-                dstValue = upper;
-            else
-                dstValue = lower + (upper-lower) * (value-feature_min[i]) / (feature_max[i]-feature_min[i]);
+            scaled_vector.push_back(dstValue);
             
-            if (scaled_vector.back() != 0)
-            {
-                scaled_vector.push_back(dstValue);
-                new_num_nonzeros++;
-            }
+            if (dstValue != 0) new_num_nonzeros++;
         }
         
         scaled_data.insert(make_pair(scaled_label, scaled_vector));
@@ -243,7 +227,11 @@ ofxSvm::~ofxSvm()
 void ofxSvm::clear()
 {
     svm_destroy_param(&mParam);
-    svm_free_and_destroy_model(&mModel);
+    if (mModel != NULL)
+    {
+        svm_free_model_content(mModel);
+        svm_free_and_destroy_model(&mModel);
+    }
 }
 
 void ofxSvm::defaultParams()
@@ -251,7 +239,7 @@ void ofxSvm::defaultParams()
     mParam.svm_type     = C_SVC;
     mParam.kernel_type  = RBF;
     mParam.degree       = 3;
-    mParam.gamma        = -DBL_MAX; // 1/n
+    mParam.gamma        = DEFAULT_D; // 1/n
     mParam.coef0        = 0;
     mParam.C            = 1;
     mParam.nu           = 0.5;
@@ -289,7 +277,7 @@ void ofxSvm::train(const Data& data)
         }
     }
     
-    if (mParam.gamma == -DBL_MAX)
+    if (mParam.gamma == DEFAULT_D)
     {
         mParam.gamma = 1.0 / data.mDimension;
         ofLogVerbose(LOG_MODULE, "Gamma set 1/n: " + ofToString(mParam.gamma));
