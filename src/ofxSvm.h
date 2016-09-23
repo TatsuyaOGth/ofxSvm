@@ -74,9 +74,8 @@ public:
     void        defaultParams();
     
 protected:
-    svm_parameter   mParam;
-    svm_model       *mModel;
-    Data const      *mTrainData;
+    svm_parameter           mParam;
+    shared_ptr<svm_model>   mModel;
     
     static void     printStdOut(const char *s);
 };
